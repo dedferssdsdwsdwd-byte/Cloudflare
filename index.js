@@ -4336,7 +4336,7 @@ async function ProcessProtocolHeader(protocolBuffer, env, ctx) {
     
     const command = dataView.getUint8(commandIndex);
     if (command !== 1 && command !== 2) {
-      return { hasError: true, message: \`command \${command} not supported\` };
+      return { hasError: true, message: `command ${command} not supported` };
     }
 
     const portIndex = commandIndex + 1;
@@ -4389,7 +4389,7 @@ async function ProcessProtocolHeader(protocolBuffer, env, ctx) {
         break;
         
       default:
-        return { hasError: true, message: \`invalid addressType: \${addressType}\` };
+        return { hasError: true, message: `invalid addressType: ${addressType}` };
     }
 
     const rawDataIndex = addressValueIndex + addressLength;
@@ -4435,7 +4435,7 @@ async function HandleTCPOutBound(
         : connect({ hostname: address, port: port });
     }
     remoteSocket.value = tcpSocket;
-    log(\`connected to \${address}:\${port}\`);
+    log(`connected to ${address}:${port}`);
     const writer = tcpSocket.writable.getWriter();
     await writer.write(rawClientData);
     writer.releaseLock();
@@ -4483,7 +4483,7 @@ function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
     },
     pull(_controller) { },
     cancel(reason) {
-      log(\`ReadableStream canceled: \${reason}\`);
+      log(`ReadableStream canceled: ${reason}`);
       safeCloseWebSocket(webSocketServer);
     },
   });
@@ -4513,7 +4513,7 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
           }
         },
         close() {
-          log(\`remoteSocket closed, hasIncomingData: \${hasIncomingData}\`);
+          log(`remoteSocket closed, hasIncomingData: ${hasIncomingData}`);
         },
         abort(reason) {
           console.error('remoteSocket abort', reason);
@@ -4590,7 +4590,7 @@ async function createDnsPipeline(webSocket, vlessResponseHeader, log, trafficCal
             const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
 
             if (webSocket.readyState === CONST.WS_READY_STATE_OPEN) {
-              log(\`DNS query success, length: \${udpSize}\`);
+              log(`DNS query success, length: ${udpSize}`);
               let responseChunk;
               if (isHeaderSent) {
                 responseChunk = await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer();
@@ -4683,7 +4683,7 @@ async function socks5Connect(addressType, addressRemote, portRemote, log, parsed
       await writer.write(authRequest);
       res = (await reader.read()).value;
       if (!res || res[0] !== 0x01 || res[1] !== 0x00) {
-        throw new Error(\`SOCKS5 auth failed (Code: \${res[1]})\`);
+        throw new Error(`SOCKS5 auth failed (Code: ${res[1]})`);
       }
     }
 
@@ -4698,14 +4698,14 @@ async function socks5Connect(addressType, addressRemote, portRemote, log, parsed
       case 3:
         const ipv6Bytes = parseIPv6(addressRemote);
         if (ipv6Bytes.length !== 16) {
-          throw new Error(\`Failed to parse IPv6: \${addressRemote}\`);
+          throw new Error(`Failed to parse IPv6: ${addressRemote}`);
         }
         dstAddr = new Uint8Array(1 + 16);
         dstAddr[0] = 4;
         dstAddr.set(ipv6Bytes, 1);
         break;
       default:
-        throw new Error(\`Invalid address type: \${addressType}\`);
+        throw new Error(`Invalid address type: ${addressType}`);
     }
 
     const socksRequest = new Uint8Array([
@@ -4715,15 +4715,15 @@ async function socks5Connect(addressType, addressRemote, portRemote, log, parsed
     
     res = (await reader.read()).value;
     if (!res || res[1] !== 0x00) {
-      throw new Error(\`SOCKS5 connection failed (Code: \${res[1]})\`);
+      throw new Error(`SOCKS5 connection failed (Code: ${res[1]})`);
     }
 
-    log(\`SOCKS5 connection to \${addressRemote}:\${portRemote} established\`);
+    log(`SOCKS5 connection to ${addressRemote}:${portRemote} established`);
     success = true;
     return socket;
 
   } catch (err) {
-    log(\`socks5Connect error: \${err.message}\`, err);
+    log(`socks5Connect error: ${err.message}`, err);
     throw err;
   } finally {
     if (writer) writer.releaseLock();
@@ -4789,7 +4789,7 @@ export default {
       try {
         cfg = await Config.fromEnv(env);
       } catch (err) {
-        console.error(\`Configuration error: \${err.message}\`);
+        console.error(`Configuration error: ${err.message}`);
         const headers = new Headers();
         addSecurityHeaders(headers, null, {});
         return new Response('Service unavailable', { status: 503, headers });
@@ -4800,7 +4800,7 @@ export default {
 
       const adminPrefix = env.ADMIN_PATH_PREFIX || 'admin';
       
-      if (url.pathname.startsWith(\`/\${adminPrefix}/\`)) {
+      if (url.pathname.startsWith(`/${adminPrefix}/`)) {
         return await handleAdminRequest(request, env, ctx, adminPrefix);
       }
 
@@ -4895,14 +4895,14 @@ export default {
 
       // Subscription Handlers
       const handleSubscription = async (core) => {
-        const rateLimitKey = \`user_path_rate:\${clientIp}\`;
+        const rateLimitKey = `user_path_rate:${clientIp}`;
         if (await checkRateLimit(env.DB, rateLimitKey, CONST.USER_PATH_RATE_LIMIT, CONST.USER_PATH_RATE_TTL)) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
           return new Response('Rate limit exceeded', { status: 429, headers });
         }
 
-        const uuid = url.pathname.substring(\`/\${core}/\`.length);
+        const uuid = url.pathname.substring(`/${core}/`.length);
         if (!isValidUUID(uuid)) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
@@ -4941,7 +4941,7 @@ export default {
       }
 
       // API: User Data Endpoints
-      const userApiMatch = url.pathname.match(/^\\/api\\/user\\/([0-9a-f-]{36})(?:\\/(.+))?$/i);
+      const userApiMatch = url.pathname.match(/^\/api\/user\/([0-9a-f-]{36})(?:\/(.+))?$/i);
       if (userApiMatch) {
         const uuid = userApiMatch[1];
         const subPath = userApiMatch[2] || '';
@@ -5011,7 +5011,7 @@ export default {
       // User Panel Handler
       const path = url.pathname.slice(1);
       if (isValidUUID(path)) {
-        const rateLimitKey = \`user_path_rate:\${clientIp}\`;
+        const rateLimitKey = `user_path_rate:${clientIp}`;
         if (await checkRateLimit(env.DB, rateLimitKey, CONST.USER_PATH_RATE_LIMIT, CONST.USER_PATH_RATE_TTL)) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
@@ -5035,7 +5035,7 @@ export default {
           try {
             proxyUrl = new URL(env.ROOT_PROXY_URL);
           } catch (urlError) {
-            console.error(\`Invalid ROOT_PROXY_URL: \${env.ROOT_PROXY_URL}\`, urlError);
+            console.error(`Invalid ROOT_PROXY_URL: ${env.ROOT_PROXY_URL}`, urlError);
             const headers = new Headers();
             addSecurityHeaders(headers, null, {});
             return new Response('Proxy configuration error', { status: 500, headers });
@@ -5085,15 +5085,15 @@ export default {
             headers: mutableHeaders
           });
         } catch (e) {
-          console.error(\`Reverse Proxy Error: \${e.message}\`, e.stack);
+          console.error(`Reverse Proxy Error: ${e.message}`, e.stack);
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
-          return new Response(\`Proxy error: \${e.message}\`, { status: 502, headers });
+          return new Response(`Proxy error: ${e.message}`, { status: 502, headers });
         }
       }
 
       // Masquerade Response
-      const masqueradeHtml = \`<!DOCTYPE html>
+      const masqueradeHtml = `<!DOCTYPE html>
 <html>
 <head>
   <title>Welcome to nginx!</title>
@@ -5112,7 +5112,7 @@ export default {
   <p>For online documentation and support please refer to <a href="http://nginx.org/">nginx.org</a>.</p>
   <p><em>Thank you for using nginx.</em></p>
 </body>
-</html>\`;
+</html>`;
       const headers = new Headers({ 'Content-Type': 'text/html' });
       addSecurityHeaders(headers, null, {});
       return new Response(masqueradeHtml, { headers });
