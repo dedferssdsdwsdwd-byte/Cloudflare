@@ -16,7 +16,7 @@
  * - HTTP/3 & Security Headers
  * - QR Code Generation & Subscription Links (Clash/Sing-box)
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @author AI Assistant
  */
 
@@ -27,7 +27,7 @@ import { connect } from 'cloudflare:sockets';
 // ==============================================================================
 
 const CONST = {
-    VERSION: '3.0.0',
+    VERSION: '3.1.0',
     HEALTH_CHECK_TIMEOUT: 2000, // 2 seconds
     DNS_CACHE_TTL: 300, // 5 minutes
     MAX_REQUEST_SIZE: 1024 * 1024, // 1MB
@@ -70,7 +70,10 @@ const Config = {
 
 const Database = {
     async init(env) {
-        if (!env.DB) return console.warn('⚠️ D1 Database binding (DB) not found.');
+        if (!env.DB) {
+            console.warn('⚠️ D1 Database binding (DB) not found. Skipping DB init.');
+            return;
+        }
         
         const schema = [
             `CREATE TABLE IF NOT EXISTS users (
@@ -112,17 +115,28 @@ const Database = {
             }
         } catch (e) {
             console.error('Database initialization failed:', e);
+            // We do not throw here to allow the worker to run even if DB is flaky
         }
     },
 
     async getUser(db, uuid) {
         if (!db) return null;
-        return await db.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
+        try {
+            return await db.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
+        } catch (e) {
+            console.error('getUser failed:', e);
+            return null;
+        }
     },
 
     async getAllUsers(db) {
         if (!db) return [];
-        return await db.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
+        try {
+            return await db.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
+        } catch (e) {
+            console.error('getAllUsers failed:', e);
+            return [];
+        }
     },
 
     async updateUserTraffic(db, uuid, bytes) {
@@ -562,7 +576,8 @@ async function handleUDPOutbound(webSocket, vlessResponseHeader, log) {
         transform(chunk, controller) {
             for (let index = 0; index < chunk.byteLength;) {
                 const lengthBuffer = chunk.slice(index, index + 2);
-                const udpPacketLength = new DataView(lengthBuffer).getUint16(0);
+                // Fixed DataView Error: manually shift bytes instead of using DataView on Uint8Array subarray
+                const udpPacketLength = (chunk[index] << 8) | chunk[index + 1];
                 const udpData = new Uint8Array(chunk.slice(index + 2, index + 2 + udpPacketLength));
                 index = index + 2 + udpPacketLength;
                 controller.enqueue(udpData);
@@ -610,57 +625,63 @@ const Subscriptions = {
 
 export default {
     async fetch(request, env, ctx) {
-        const config = Config.fromEnv(env);
-        await Database.init(env);
-        const url = new URL(request.url);
+        // Global Error Handler to prevent 1101
+        try {
+            const config = Config.fromEnv(env);
+            await Database.init(env);
+            const url = new URL(request.url);
 
-        if (request.headers.get('Upgrade') === 'websocket') return await vlessOverWSHandler(request, env, ctx);
-        if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /admin', { status: 200 });
+            if (request.headers.get('Upgrade') === 'websocket') return await vlessOverWSHandler(request, env, ctx);
+            if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /admin', { status: 200 });
 
-        if (url.pathname.startsWith('/' + config.adminPath)) {
-            if (request.method === 'POST' && url.pathname === '/' + config.adminPath) {
-                const formData = await request.formData();
-                if (formData.get('password') === config.adminKey) {
-                    return new Response(null, { status: 302, headers: { 'Set-Cookie': `auth_token=${config.adminKey}; Path=/; HttpOnly; Secure; SameSite=Strict`, 'Location': '/' + config.adminPath } });
+            if (url.pathname.startsWith('/' + config.adminPath)) {
+                if (request.method === 'POST' && url.pathname === '/' + config.adminPath) {
+                    const formData = await request.formData();
+                    if (formData.get('password') === config.adminKey) {
+                        return new Response(null, { status: 302, headers: { 'Set-Cookie': `auth_token=${config.adminKey}; Path=/; HttpOnly; Secure; SameSite=Strict`, 'Location': '/' + config.adminPath } });
+                    }
+                    return new Response(buildLoginPage(config.adminPath, 'Invalid Credentials'), { headers: { 'Content-Type': 'text/html' } });
                 }
-                return new Response(buildLoginPage(config.adminPath, 'Invalid Credentials'), { headers: { 'Content-Type': 'text/html' } });
+                if ((request.headers.get('Cookie') || '').indexOf(`auth_token=${config.adminKey}`) === -1) {
+                    return new Response(buildLoginPage(config.adminPath), { headers: { 'Content-Type': 'text/html' } });
+                }
+                if (url.searchParams.get('action')) return await handleApiRequest(request, env);
+                const nonce = Utils.generateNonce();
+                return new Response(buildAdminUI(config, nonce), { headers: { 'Content-Type': 'text/html', 'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';` } });
             }
-            if ((request.headers.get('Cookie') || '').indexOf(`auth_token=${config.adminKey}`) === -1) {
-                return new Response(buildLoginPage(config.adminPath), { headers: { 'Content-Type': 'text/html' } });
+
+            if (url.pathname.startsWith('/sub/')) {
+                const uuid = url.pathname.split('/')[2];
+                const user = await Database.getUser(env.DB, uuid);
+                if (user) {
+                    ctx.waitUntil(env.DB.prepare("UPDATE users SET active = 1 WHERE uuid = ?").bind(uuid).run());
+                    const format = url.searchParams.get('format');
+                    if (format === 'clash') return new Response(Subscriptions.toClash(user, url.hostname), { headers: { 'Content-Type': 'text/yaml', 'Content-Disposition': `attachment; filename="${url.hostname}.yaml"` } });
+                    if (format === 'singbox') return new Response(Subscriptions.toSingbox(user, url.hostname), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${url.hostname}.json"` } });
+                    return new Response(buildUserUI(user, config), { headers: { 'Content-Type': 'text/html' } });
+                }
+                return new Response('Invalid Subscription', { status: 404 });
             }
-            if (url.searchParams.get('action')) return await handleApiRequest(request, env);
-            const nonce = Utils.generateNonce();
-            return new Response(buildAdminUI(config, nonce), { headers: { 'Content-Type': 'text/html', 'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${nonce}' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';` } });
-        }
 
-        if (url.pathname.startsWith('/sub/')) {
-            const uuid = url.pathname.split('/')[2];
-            const user = await Database.getUser(env.DB, uuid);
-            if (user) {
-                ctx.waitUntil(env.DB.prepare("UPDATE users SET active = 1 WHERE uuid = ?").bind(uuid).run());
-                const format = url.searchParams.get('format');
-                if (format === 'clash') return new Response(Subscriptions.toClash(user, url.hostname), { headers: { 'Content-Type': 'text/yaml', 'Content-Disposition': `attachment; filename="${url.hostname}.yaml"` } });
-                if (format === 'singbox') return new Response(Subscriptions.toSingbox(user, url.hostname), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${url.hostname}.json"` } });
-                return new Response(buildUserUI(user, config), { headers: { 'Content-Type': 'text/html' } });
+            if (config.enableLandingProxy) {
+                try {
+                    const proxyUrl = new URL(config.landingPageUrl);
+                    const proxyReq = new Request(proxyUrl.origin + url.pathname + url.search, { method: request.method, headers: request.headers, body: request.body, redirect: 'follow' });
+                    proxyReq.headers.set('Host', proxyUrl.hostname);
+                    proxyReq.headers.set('Referer', proxyUrl.origin);
+                    const res = await fetch(proxyReq);
+                    const newHeaders = new Headers(res.headers);
+                    newHeaders.delete('Content-Security-Policy'); newHeaders.delete('X-Frame-Options');
+                    Utils.addSecurityHeaders(newHeaders);
+                    return new Response(res.body, { status: res.status, headers: newHeaders });
+                } catch (e) {}
             }
-            return new Response('Invalid Subscription', { status: 404 });
-        }
 
-        if (config.enableLandingProxy) {
-            try {
-                const proxyUrl = new URL(config.landingPageUrl);
-                const proxyReq = new Request(proxyUrl.origin + url.pathname + url.search, { method: request.method, headers: request.headers, body: request.body, redirect: 'follow' });
-                proxyReq.headers.set('Host', proxyUrl.hostname);
-                proxyReq.headers.set('Referer', proxyUrl.origin);
-                const res = await fetch(proxyReq);
-                const newHeaders = new Headers(res.headers);
-                newHeaders.delete('Content-Security-Policy'); newHeaders.delete('X-Frame-Options');
-                Utils.addSecurityHeaders(newHeaders);
-                return new Response(res.body, { status: res.status, headers: newHeaders });
-            } catch (e) {}
+            return new Response(`<!DOCTYPE html><html><body style="background:#0f172a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><h1>404 Not Found</h1></body></html>`, { status: 404, headers: { 'Content-Type': 'text/html' } });
+        } catch (err) {
+            // Recover from 1101 by showing actual error
+            return new Response(`Error: ${err.message}\n${err.stack}`, { status: 500 });
         }
-
-        return new Response(`<!DOCTYPE html><html><body style="background:#0f172a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><h1>404 Not Found</h1></body></html>`, { status: 404, headers: { 'Content-Type': 'text/html' } });
     },
     async scheduled(event, env, ctx) {
         await Database.init(env);
@@ -672,6 +693,8 @@ export default {
                 await Database.saveProxyHealth(env.DB, ip, Date.now() - start, res.ok || res.status === 404);
             } catch (e) { await Database.saveProxyHealth(env.DB, ip, 0, false); }
         }
-        await env.DB.prepare("UPDATE users SET active = 0 WHERE active = 1 AND expiration_date IS NOT NULL AND datetime(expiration_date || ' ' || COALESCE(expiration_time, '00:00:00')) < datetime('now')").run();
+        if (env.DB) {
+           await env.DB.prepare("UPDATE users SET active = 0 WHERE active = 1 AND expiration_date IS NOT NULL AND datetime(expiration_date || ' ' || COALESCE(expiration_time, '00:00:00')) < datetime('now')").run();
+        }
     }
 };
