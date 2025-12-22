@@ -468,8 +468,6 @@ function stringify(arr, offset = 0) {
     }
     return uuid;
 }
-
-}
 // Part 2: VLESS Protocol Logic and Connection Handling
 async function getUserData(env, uuid, ctx) {
     if (!isValidUUID(uuid)) {
