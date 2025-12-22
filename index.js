@@ -1,25 +1,23 @@
 // @ts-nocheck
 /**
  * ==============================================================================
- * 🚀 VLESS PROXY MANAGER - ROBUST EDITION (SINGLE-FILE WORKER)
+ * 🚀 VLESS PROXY MANAGER - ULTIMATE ROBUST EDITION
  * ==============================================================================
  * 
- * A complete, professional, and secure VLESS implementation for Cloudflare Workers.
- * Refactored for maximum stability, error handling, and ease of deployment.
+ * - Full UI (Admin & User)
+ * - Error-Proof VLESS Core
+ * - Top-Level Hoisting to prevent ReferenceErrors
+ * - Global Try-Catch to prevent 1101 Errors
  * 
- * @version 3.2.0 (Error-Proof)
- * @author AI Assistant
+ * @version 4.0.0
  */
 
 import { connect } from 'cloudflare:sockets';
 
 // ==============================================================================
-// 1. TOP-LEVEL UTILITIES (HOISTED FOR SAFETY)
+// 1. TOP-LEVEL UTILITIES (HOISTED)
 // ==============================================================================
 
-/**
- * Safely closes a WebSocket connection.
- */
 function safeCloseWebSocket(socket) {
     try {
         if (socket && (socket.readyState === 1 || socket.readyState === 0)) {
@@ -30,17 +28,11 @@ function safeCloseWebSocket(socket) {
     }
 }
 
-/**
- * Validates a UUID string.
- */
 function isValidUUID(uuid) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
 }
 
-/**
- * Converts ArrayBuffer to UUID string.
- */
 function stringifyUUID(v) {
     const arr = [...v];
     const toHex = (n) => (n < 16 ? '0' : '') + n.toString(16);
@@ -53,9 +45,6 @@ function stringifyUUID(v) {
     );
 }
 
-/**
- * Decodes a Base64 string to ArrayBuffer.
- */
 function base64ToArrayBuffer(base64Str) {
     if (!base64Str) return { earlyData: null, error: null };
     try {
@@ -68,9 +57,6 @@ function base64ToArrayBuffer(base64Str) {
     }
 }
 
-/**
- * Generates a random nonce for CSP headers.
- */
 function generateNonce() {
     let text = "";
     const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -80,13 +66,20 @@ function generateNonce() {
     return text;
 }
 
+function formatBytes(bytes) {
+    if (!+bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // ==============================================================================
 // 2. CONFIGURATION & CONSTANTS
 // ==============================================================================
 
 const CONST = {
-    VERSION: '3.2.0',
-    HEALTH_CHECK_TIMEOUT: 2000,
+    VERSION: '4.0.0',
     DEFAULT_UUID: 'd342d11e-d424-4583-b36e-524ab1f0afa4'
 };
 
@@ -99,23 +92,17 @@ const Config = {
             proxyIPs: (env.PROXYIP || '').split(',').filter(Boolean).map(i => i.trim()),
             enableLandingProxy: env.ENABLE_LANDING_PROXY === 'true',
             landingPageUrl: env.LANDING_PAGE_URL || 'https://www.google.com',
-            // D1 binding is accessed directly via env.DB
         };
     }
 };
 
 // ==============================================================================
-// 3. DATABASE LAYER (ROBUST)
+// 3. DATABASE LAYER
 // ==============================================================================
 
 const Database = {
     async init(env) {
-        // Guard: Check if DB is bound
-        if (!env.DB) {
-            console.warn('⚠️ D1 Database (env.DB) is missing. Skipping DB operations.');
-            return;
-        }
-
+        if (!env.DB) return;
         const schema = [
             `CREATE TABLE IF NOT EXISTS users (
                 uuid TEXT PRIMARY KEY,
@@ -134,41 +121,34 @@ const Database = {
                 last_check DATETIME DEFAULT CURRENT_TIMESTAMP
             )`
         ];
-
         try {
             const batch = schema.map(query => env.DB.prepare(query));
             await env.DB.batch(batch);
-
-            // Seed default user if empty
+            
+            // Seed default
             const check = await env.DB.prepare("SELECT count(*) as count FROM users").first();
             if (check && check.count === 0) {
                 const cfg = Config.fromEnv(env);
                 await env.DB.prepare("INSERT INTO users (uuid, notes, traffic_limit) VALUES (?, ?, ?)")
                     .bind(cfg.uuid, 'Admin User', 0).run();
-                console.log('Database seeded with default user.');
             }
         } catch (e) {
-            // Log but don't crash the worker. Tables might already exist or D1 is busy.
-            console.warn('Database initialization warning (non-fatal):', e.message);
+            console.warn('DB Init Warning:', e.message);
         }
     },
 
     async getUser(env, uuid) {
         if (!env.DB) {
-            // Fallback: If no DB, allow the UUID from env variable as a "superuser"
             const cfg = Config.fromEnv(env);
-            if (uuid === cfg.uuid) {
-                return { uuid: cfg.uuid, notes: 'Env Superuser', traffic_limit: 0, traffic_used: 0, active: 1 };
-            }
+            if (uuid === cfg.uuid) return { uuid: cfg.uuid, notes: 'Superuser', active: 1, traffic_used: 0 };
             return null;
         }
         try {
             return await env.DB.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
         } catch (e) {
-            console.error('DB getUser error:', e);
-            // Fallback to env UUID on DB error
+            // Fallback for superuser if DB fails
             const cfg = Config.fromEnv(env);
-            if (uuid === cfg.uuid) return { uuid: cfg.uuid, notes: 'Fallback User', active: 1 };
+            if (uuid === cfg.uuid) return { uuid: cfg.uuid, notes: 'Superuser (DB Fail)', active: 1, traffic_used: 0 };
             return null;
         }
     },
@@ -178,30 +158,378 @@ const Database = {
         try {
             const res = await env.DB.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
             return res.results || [];
-        } catch (e) {
-            console.error('DB getAllUsers error:', e);
-            return [];
-        }
+        } catch (e) { return []; }
     },
 
     async updateUserTraffic(env, uuid, bytes) {
         if (!env.DB) return;
         try {
             await env.DB.prepare("UPDATE users SET traffic_used = traffic_used + ? WHERE uuid = ?").bind(bytes, uuid).run();
-        } catch (e) { /* ignore traffic update errors to prevent lag */ }
+        } catch (e) {}
     },
 
-    async saveProxyHealth(env, address, latency, isHealthy) {
-        if (!env.DB) return;
-        try {
-            await env.DB.prepare("INSERT OR REPLACE INTO proxy_health (address, latency, is_healthy, last_check) VALUES (?, ?, ?, CURRENT_TIMESTAMP)")
-                .bind(address, latency, isHealthy ? 1 : 0).run();
-        } catch (e) { console.error('DB saveProxyHealth error:', e); }
+    async createUser(env, note) {
+         if (!env.DB) return false;
+         const newUUID = crypto.randomUUID();
+         await env.DB.prepare("INSERT INTO users (uuid, notes, traffic_limit) VALUES (?, ?, ?)").bind(newUUID, note, 0).run();
+         return true;
+    },
+
+    async deleteUser(env, uuid) {
+        if (!env.DB) return false;
+        await env.DB.prepare("DELETE FROM users WHERE uuid = ?").bind(uuid).run();
+        return true;
     }
 };
 
 // ==============================================================================
-// 4. VLESS CORE LOGIC (SOCKET HANDLERS)
+// 4. FRONTEND ASSETS & TEMPLATES
+// ==============================================================================
+
+const ASSETS = {
+    CSS: `
+    :root {
+        --bg-body: #0f172a; --bg-card: #1e293b; --bg-input: #334155;
+        --text-main: #f8fafc; --text-muted: #94a3b8;
+        --primary: #3b82f6; --primary-hover: #2563eb;
+        --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+        --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .flex { display: flex; } .flex-col { flex-direction: column; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 0.5rem; } .gap-4 { gap: 1rem; } .w-full { width: 100%; } .hidden { display: none; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; border: none; gap: 0.5rem; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; }
+    .btn-primary { background-color: var(--primary); color: white; } .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+    .btn-ghost { background: transparent; color: var(--text-muted); } .btn-ghost:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+    .input { width: 100%; background-color: var(--bg-body); border: 1px solid var(--border); color: var(--text-main); padding: 0.625rem; border-radius: 8px; font-size: 0.875rem; }
+    .input:focus { border-color: var(--primary); }
+    .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background-color: rgba(0,0,0,0.2); padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); }
+    td { padding: 16px; border-top: 1px solid var(--border); font-size: 0.875rem; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-card); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 1000; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .badge { padding: 2px 8px; border-radius: 99px; font-size: 0.7rem; font-weight: 600; }
+    .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .login-wrapper { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
+    .login-card { width: 100%; max-width: 400px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+    `
+};
+
+function buildAdminUI(config, nonce) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLESS Manager | Admin</title>
+    <style nonce="${nonce}">${ASSETS.CSS}</style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-body text-main">
+    <div id="app" class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-card h-full fixed md:static transform -translate-x-full md:translate-x-0 transition-transform duration-200 border-r border-border z-30 flex flex-col" id="sidebar">
+            <div class="p-6 border-b border-border flex items-center justify-between">
+                <h1 class="text-xl font-bold flex items-center gap-2 m-0"><span class="text-primary">⚡</span> VLESS<span class="text-muted">PRO</span></h1>
+                <button class="md:hidden text-muted" onclick="toggleSidebar()">✕</button>
+            </div>
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <button onclick="router('dashboard')" class="w-full btn btn-ghost justify-start active" id="nav-dashboard">Dashboard</button>
+                <button onclick="router('users')" class="w-full btn btn-ghost justify-start" id="nav-users">Users</button>
+                <button onclick="router('settings')" class="w-full btn btn-ghost justify-start" id="nav-settings">Settings</button>
+            </nav>
+            <div class="p-4 border-t border-border">
+                <button onclick="logout()" class="w-full btn btn-danger justify-start text-sm">Sign Out</button>
+            </div>
+        </aside>
+        <main class="flex-1 h-full overflow-y-auto relative w-full">
+            <header class="md:hidden h-16 border-b border-border flex items-center justify-between px-4 bg-card sticky top-0 z-20">
+                <span class="font-bold text-lg">Dashboard</span>
+                <button onclick="toggleSidebar()" class="btn btn-ghost p-2">Menu</button>
+            </header>
+            <div class="container py-8 px-4 md:px-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 animate-fade">
+                    <div><h2 class="text-2xl font-bold" id="page-title">Overview</h2></div>
+                    <div class="flex items-center gap-3"><button onclick="refreshData()" class="btn btn-ghost border border-border bg-card">Refresh</button></div>
+                </div>
+
+                <!-- DASHBOARD VIEW -->
+                <div id="view-dashboard" class="view-section animate-fade">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="card">
+                            <p class="text-sm text-muted font-medium uppercase">Total Users</p>
+                            <h3 class="text-3xl font-bold mt-2" id="stat-total-users">0</h3>
+                        </div>
+                        <div class="card">
+                            <p class="text-sm text-muted font-medium uppercase">Total Traffic</p>
+                            <h3 class="text-3xl font-bold mt-2 text-primary" id="stat-total-traffic">0 B</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- USERS VIEW -->
+                <div id="view-users" class="view-section hidden animate-fade">
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-bold">Registered Users</h3>
+                            <button onclick="openModal('create')" class="btn btn-primary">+ New User</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="w-full">
+                                <thead><tr><th>Status</th><th>Details</th><th>Traffic</th><th>Actions</th></tr></thead>
+                                <tbody id="user-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS VIEW -->
+                <div id="view-settings" class="view-section hidden animate-fade">
+                    <div class="card">
+                        <h3 class="text-lg font-bold mb-4">Configuration</h3>
+                        <p class="mb-2">Admin Path: <code class="text-primary">/${config.adminPath}</code></p>
+                        <p class="mb-2">Landing Page: <code class="text-primary">${config.landingPageUrl}</code></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- CREATE USER MODAL -->
+    <div id="modal-create" class="fixed inset-0 bg-black/80 z-50 hidden backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card w-full max-w-lg relative" onclick="event.stopPropagation()">
+            <h3 class="text-xl font-bold mb-4">Create New User</h3>
+            <form id="create-user-form" onsubmit="event.preventDefault(); saveUser();">
+                <label class="block mb-2 text-sm text-muted">User Note / Name</label>
+                <input type="text" id="new-note" class="input mb-4" placeholder="e.g. My Phone" required>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeModal('create')" class="btn btn-ghost">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR MODAL -->
+    <div id="modal-qr" class="fixed inset-0 bg-black/90 z-50 hidden backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card w-full max-w-sm relative text-center" onclick="event.stopPropagation()">
+            <button onclick="closeModal('qr')" class="absolute top-4 right-4 text-muted text-xl">&times;</button>
+            <h3 class="text-xl font-bold mb-6">Connection QR</h3>
+            <div class="bg-white p-4 rounded-xl inline-block mb-6"><div id="admin-qr-target"></div></div>
+            <button onclick="copyToClip(window.currentQRLink)" class="btn btn-primary w-full">Copy Link</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script nonce="${nonce}">
+        // LOGIC
+        let users = [];
+        window.currentQRLink = '';
+
+        function router(view) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + view).classList.remove('hidden');
+            
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active', 'text-primary'));
+            document.getElementById('nav-' + view).classList.add('active', 'text-primary');
+
+            const sidebar = document.getElementById('sidebar');
+            if(!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) toggleSidebar();
+
+            if(view === 'users') fetchUsers();
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('?action=get_stats');
+                const data = await res.json();
+                document.getElementById('stat-total-users').innerText = data.total;
+                document.getElementById('stat-total-traffic').innerText = formatBytes(data.traffic);
+            } catch(e) {}
+        }
+
+        async function fetchUsers() {
+            const tbody = document.getElementById('user-table-body');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Loading...</td></tr>';
+            try {
+                const res = await fetch('?action=get_users');
+                users = await res.json();
+                renderUsers(users);
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error loading users</td></tr>';
+            }
+        }
+
+        function renderUsers(list) {
+            const tbody = document.getElementById('user-table-body');
+            if(list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">No users found</td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map(u => \`
+                <tr>
+                    <td><span class="badge badge-success">Active</span></td>
+                    <td><div class="font-bold">\${u.notes}</div><div class="text-xs text-muted font-mono">\${u.uuid}</div></td>
+                    <td>\${formatBytes(u.traffic_used)}</td>
+                    <td>
+                        <button onclick="showQR('\${u.uuid}')" class="btn btn-ghost text-primary p-1">QR</button>
+                        <button onclick="deleteUser('\${u.uuid}')" class="btn btn-ghost text-danger p-1">Del</button>
+                    </td>
+                </tr>
+            \`).join('');
+        }
+
+        async function saveUser() {
+            const note = document.getElementById('new-note').value;
+            if(!note) return;
+            await fetch('?action=create_user', { method: 'POST', body: JSON.stringify({ note }) });
+            closeModal('create'); fetchUsers(); fetchStats(); document.getElementById('create-user-form').reset();
+        }
+
+        async function deleteUser(uuid) {
+            if(!confirm('Delete this user?')) return;
+            await fetch('?action=delete_user', { method: 'POST', body: JSON.stringify({ uuid }) });
+            fetchUsers(); fetchStats();
+        }
+
+        function generateLink(uuid) {
+            const host = window.location.hostname;
+            return \`vless://\${uuid}@\${host}:443?encryption=none&security=tls&type=ws&host=\${host}&path=%2F#\${host}\`;
+        }
+
+        function showQR(uuid) {
+            window.currentQRLink = generateLink(uuid);
+            document.getElementById('admin-qr-target').innerHTML = '';
+            new QRCode(document.getElementById('admin-qr-target'), {
+                text: window.currentQRLink, width: 200, height: 200
+            });
+            openModal('qr');
+        }
+
+        function copyToClip(str) { navigator.clipboard.writeText(str); showToast('Copied to clipboard'); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.className = 'toast show success';
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function openModal(id) { document.getElementById('modal-'+id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById('modal-'+id).classList.add('hidden'); }
+        
+        function formatBytes(bytes) {
+            if (!+bytes) return '0 B';
+            const k=1024, i=Math.floor(Math.log(bytes)/Math.log(k));
+            return parseFloat((bytes/Math.pow(k,i)).toFixed(2))+' '+['B','KB','MB','GB','TB'][i];
+        }
+
+        function refreshData() { fetchStats(); if(!document.getElementById('view-users').classList.contains('hidden')) fetchUsers(); }
+        function logout() { document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;"; window.location.reload(); }
+
+        fetchStats();
+    </script>
+</body>
+</html>`;
+}
+
+function buildLoginPage(path, error) {
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Login</title><style>${ASSETS.CSS}</style></head><body>
+    <div class="login-wrapper">
+        <div class="card login-card animate-fade">
+            <div class="text-center mb-8"><h1 class="text-3xl font-bold text-primary">VLESS PRO</h1></div>
+            ${error ? `<div class="bg-red-500/10 text-danger p-3 rounded mb-4 text-center">${error}</div>` : ''}
+            <form action="/${path}" method="POST">
+                <input type="password" name="password" class="input text-center text-lg mb-4" placeholder="Admin Key" required autofocus>
+                <button type="submit" class="btn btn-primary w-full py-3">Login</button>
+            </form>
+        </div>
+    </div></body></html>`;
+}
+
+function buildUserUI(userData, config) {
+    const totalGB = userData.traffic_limit ? (userData.traffic_limit / 1073741824).toFixed(2) : '∞';
+    const usedGB = (userData.traffic_used / 1073741824).toFixed(2);
+    
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>My Subscription</title><style>${ASSETS.CSS}</style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script></head><body>
+    <div class="container py-8 max-w-2xl">
+        <div class="flex justify-between mb-8 animate-fade">
+            <div><h1 class="text-2xl font-bold">My Subscription</h1><p class="text-muted text-sm">Active &bull; ${userData.notes}</p></div>
+        </div>
+        
+        <div class="card mb-6 animate-fade">
+            <div class="flex justify-between items-end mb-4">
+                <div><p class="text-sm text-muted">Data Usage</p><h2 class="text-3xl font-bold">${usedGB} <span class="text-sm font-normal">GB</span></h2></div>
+                <div><p class="text-sm text-muted">of ${totalGB} GB</p></div>
+            </div>
+            <div class="w-full bg-border h-4 rounded-full overflow-hidden">
+                <div class="bg-success h-full" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="card mb-6 animate-fade">
+            <h3 class="font-bold mb-4">Connection Links</h3>
+            <div class="grid gap-3">
+                <button onclick="copyLink('vless')" class="btn btn-ghost border border-border justify-between">
+                    <span>VLESS Link (Universal)</span> <span class="text-primary">Copy</span>
+                </button>
+                 <button onclick="openQR()" class="btn btn-ghost border border-border justify-between">
+                    <span>Show QR Code</span> <span class="text-primary">View</span>
+                </button>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="copyLink('clash')" class="btn btn-ghost border border-border text-sm">Copy Clash</button>
+                    <button onclick="copyLink('singbox')" class="btn btn-ghost border border-border text-sm">Copy Sing-Box</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="modal-qr" class="fixed inset-0 bg-black/90 z-50 hidden backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card w-full max-w-sm relative text-center">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-white text-xl">&times;</button>
+            <h3 class="font-bold mb-6">Scan to Connect</h3>
+            <div class="bg-white p-4 rounded-xl inline-block mb-4"><div id="qrcode"></div></div>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const CONFIG = { uuid: "${userData.uuid}", host: window.location.hostname };
+        const vlessLink = \`vless://\${CONFIG.uuid}@\${CONFIG.host}:443?encryption=none&security=tls&type=ws&host=\${CONFIG.host}&path=%2F#\${CONFIG.host}\`;
+        
+        new QRCode(document.getElementById("qrcode"), { text: vlessLink, width: 200, height: 200 });
+
+        function copyLink(type) {
+            let link = vlessLink;
+            if(type === 'clash') link = location.origin + '/sub/' + CONFIG.uuid + '?format=clash';
+            if(type === 'singbox') link = location.origin + '/sub/' + CONFIG.uuid + '?format=singbox';
+            
+            navigator.clipboard.writeText(link).then(() => {
+                const t = document.getElementById('toast');
+                t.textContent = 'Copied to clipboard!'; t.className = 'toast show success';
+                setTimeout(() => t.classList.remove('show'), 2000);
+            });
+        }
+        function openQR() { document.getElementById('modal-qr').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal-qr').classList.add('hidden'); }
+    </script></body></html>`;
+}
+
+// ==============================================================================
+// 5. VLESS LOGIC (SOCKETS & PARSING)
 // ==============================================================================
 
 async function handleUDPOutbound(webSocket, vlessResponseHeader, log) {
@@ -249,20 +577,16 @@ async function handleUDPOutbound(webSocket, vlessResponseHeader, log) {
 }
 
 async function handleTCPOutbound(remoteSocket, addressRemote, portRemote, rawData, webSocket, responseHeader, log, env, uuid, ctx) {
-    // Connect to remote server
     const tcpSocket = connect({ hostname: addressRemote, port: portRemote });
     remoteSocket.value = tcpSocket;
     
-    // Write initial data
     const writer = tcpSocket.writable.getWriter();
     await writer.write(rawData);
     writer.releaseLock();
 
-    // Pipe remote -> client
     tcpSocket.readable.pipeTo(new WritableStream({
         async write(chunk, controller) {
             if (uuid && env.DB && ctx) {
-                // Non-blocking traffic log
                 ctx.waitUntil(Database.updateUserTraffic(env, uuid, chunk.byteLength));
             }
             if (webSocket.readyState === 1) {
@@ -274,15 +598,9 @@ async function handleTCPOutbound(remoteSocket, addressRemote, portRemote, rawDat
                 }
             }
         },
-        close() {
-            safeCloseWebSocket(webSocket);
-        },
-        abort(reason) {
-            console.error('Remote TCP Aborted:', reason);
-            safeCloseWebSocket(webSocket);
-        }
+        close() { safeCloseWebSocket(webSocket); },
+        abort(reason) { safeCloseWebSocket(webSocket); }
     })).catch((err) => {
-        console.error('Remote TCP Pipe Error:', err);
         safeCloseWebSocket(webSocket);
     });
 
@@ -357,19 +675,15 @@ async function vlessOverWSHandler(request, env, ctx) {
                 controller.close();
             });
             webSocket.addEventListener('error', (err) => {
-                console.error('WebSocket Error:', err);
                 controller.error(err);
             });
-            
             if (error) {
                 controller.error(error);
             } else if (earlyData) {
                 controller.enqueue(earlyData);
             }
         },
-        cancel(reason) {
-            safeCloseWebSocket(webSocket);
-        }
+        cancel(reason) { safeCloseWebSocket(webSocket); }
     });
 
     let remoteSocketWapper = { value: null };
@@ -391,7 +705,6 @@ async function vlessOverWSHandler(request, env, ctx) {
             const { hasError, message, portRemote, addressRemote, rawDataIndex, vlessVersion, isUDP, uuid } = await parseVlessHeader(chunk);
 
             if (hasError) {
-                console.warn('VLESS Header Error:', message);
                 safeCloseWebSocket(webSocket);
                 return;
             }
@@ -399,11 +712,8 @@ async function vlessOverWSHandler(request, env, ctx) {
             address = addressRemote;
             portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp" : "tcp"}`;
 
-            // Check User Authorization
             const user = await Database.getUser(env, uuid);
             if (!user) {
-                console.warn(`Unauthorized Access Attempt: ${uuid}`);
-                // Close gracefully
                 safeCloseWebSocket(webSocket);
                 return;
             }
@@ -416,20 +726,15 @@ async function vlessOverWSHandler(request, env, ctx) {
                     udpStreamWrite(chunk.slice(rawDataIndex));
                     return;
                 } else {
-                    console.warn('UDP blocked: Only DNS (53) allowed');
                     safeCloseWebSocket(webSocket);
                     return;
                 }
             }
 
-            // Handle TCP
             await handleTCPOutbound(remoteSocketWapper, addressRemote, portRemote, chunk.slice(rawDataIndex), webSocket, new Uint8Array([vlessVersion[0], 0]), log, env, uuid, ctx);
         },
-        abort(reason) {
-            safeCloseWebSocket(webSocket);
-        }
+        abort(reason) { safeCloseWebSocket(webSocket); }
     })).catch((err) => {
-        console.error('Readable WebSocket Pipe Error:', err);
         safeCloseWebSocket(webSocket);
     });
 
@@ -437,18 +742,8 @@ async function vlessOverWSHandler(request, env, ctx) {
 }
 
 // ==============================================================================
-// 5. HELPER OBJECTS (UI & SUBSCRIPTION)
+// 6. SUBSCRIPTION & EXPORT
 // ==============================================================================
-
-const ASSETS = {
-    CSS: `:root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #3b82f6; }
-          body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-          .card { background: var(--card); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
-          .btn { background: var(--primary); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 10px; border:none; cursor:pointer;}
-          input, button { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #333; background: #334155; color: white; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }`,
-};
 
 const Subscriptions = {
     toClash(user, host) {
@@ -511,43 +806,24 @@ rules:
     }
 };
 
-// ==============================================================================
-// 6. MAIN WORKER ENTRY POINT
-// ==============================================================================
-
 export default {
-    /**
-     * Main request handler
-     */
     async fetch(request, env, ctx) {
-        // GLOBAL ERROR TRAP - Prevents 1101/500 crashes
         try {
-            // 1. Guardrails: Check Environment
-            if (!env.UUID) {
-                return new Response(`
-                    <html><body style="background:#111;color:#eee;font-family:sans-serif;text-align:center;padding:50px;">
-                    <h1>Setup Required</h1>
-                    <p>Please add <code>UUID</code> to your Cloudflare Worker "Environment Variables".</p>
-                    </body></html>`, 
-                    { status: 503, headers: { 'Content-Type': 'text/html' } }
-                );
-            }
+            if (!env.UUID) return new Response('Setup Required: Env UUID missing', { status: 503 });
 
             const config = Config.fromEnv(env);
             await Database.init(env);
             const url = new URL(request.url);
 
-            // 2. VLESS WebSocket Handler
             if (request.headers.get('Upgrade') === 'websocket') {
                 return await vlessOverWSHandler(request, env, ctx);
             }
 
-            // 3. Static Routes
             if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /', { status: 200 });
 
-            // 4. Admin Panel & API
+            // ADMIN PANEL
             if (url.pathname.startsWith('/' + config.adminPath)) {
-                // Login
+                // Login API
                 if (request.method === 'POST' && url.pathname === '/' + config.adminPath) {
                     const formData = await request.formData();
                     if (formData.get('password') === config.adminKey) {
@@ -559,22 +835,16 @@ export default {
                             }
                         });
                     }
-                    return new Response('Invalid Password', { status: 401 });
+                    return new Response(buildLoginPage(config.adminPath, 'Invalid Password'), { headers: {'Content-Type': 'text/html'} });
                 }
 
                 // Auth Check
                 const cookie = request.headers.get('Cookie') || '';
                 if (!cookie.includes(`auth_token=${config.adminKey}`)) {
-                    return new Response(`<!DOCTYPE html><html><head><style>${ASSETS.CSS}</style></head><body>
-                        <div class="card" style="text-align:center">
-                        <h2>Login</h2>
-                        <form method="POST"><input type="password" name="password" placeholder="Key" required><button type="submit" class="btn">Enter</button></form>
-                        </div></body></html>`, 
-                        { headers: { 'Content-Type': 'text/html' } }
-                    );
+                    return new Response(buildLoginPage(config.adminPath), { headers: {'Content-Type': 'text/html'} });
                 }
 
-                // API Handling
+                // Admin API
                 const action = url.searchParams.get('action');
                 if (action) {
                     if (action === 'get_users') {
@@ -589,50 +859,22 @@ export default {
                     }
                     if (action === 'create_user' && request.method === 'POST') {
                         const body = await request.json();
-                        const newUUID = crypto.randomUUID();
-                        if (env.DB) await env.DB.prepare("INSERT INTO users (uuid, notes, traffic_limit) VALUES (?, ?, ?)").bind(newUUID, body.note, 0).run();
+                        await Database.createUser(env, body.note);
                         return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
                     }
                     if (action === 'delete_user' && request.method === 'POST') {
                         const body = await request.json();
-                        if (env.DB) await env.DB.prepare("DELETE FROM users WHERE uuid = ?").bind(body.uuid).run();
+                        await Database.deleteUser(env, body.uuid);
                         return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
                     }
                 }
 
-                // Render Dashboard (Simplified for robustness)
+                // Render Dashboard
                 const nonce = generateNonce();
-                return new Response(`<!DOCTYPE html><html><head><title>Admin</title><style nonce="${nonce}">${ASSETS.CSS}</style></head><body>
-                    <div class="card">
-                    <h2>Dashboard</h2>
-                    <div style="display:flex;gap:10px;margin-bottom:20px"><button onclick="loadUsers()" class="btn">Refresh</button><button onclick="createUser()" class="btn" style="background:#10b981">New User</button></div>
-                    <div id="stats">Loading...</div>
-                    <div id="list"></div>
-                    </div>
-                    <script nonce="${nonce}">
-                    async function loadUsers() {
-                        const res = await fetch('?action=get_users');
-                        const users = await res.json();
-                        const statsRes = await fetch('?action=get_stats');
-                        const stats = await statsRes.json();
-                        document.getElementById('stats').innerText = 'Users: ' + stats.total + ' | Traffic: ' + (stats.traffic/1e9).toFixed(2) + ' GB';
-                        document.getElementById('list').innerHTML = '<table><tr><th>User</th><th>UUID</th><th>Traffic</th><th>Action</th></tr>' + 
-                        users.map(u => '<tr><td>' + (u.notes||'-') + '</td><td style="font-family:monospace;font-size:12px">' + u.uuid + '</td><td>' + (u.traffic_used/1e9).toFixed(2) + ' GB</td><td><button onclick="del(\\'npm'+u.uuid+'\\')" style="background:#ef4444;padding:5px;width:auto">Del</button></td></tr>').join('') + '</table>';
-                    }
-                    async function createUser() {
-                        const note = prompt("User Note:");
-                        if(note) { await fetch('?action=create_user', {method:'POST', body:JSON.stringify({note})}); loadUsers(); }
-                    }
-                    async function del(uuid) {
-                         if(confirm("Delete?")) { await fetch('?action=delete_user', {method:'POST', body:JSON.stringify({uuid: uuid.substring(3)})}); loadUsers(); }
-                    }
-                    loadUsers();
-                    </script></body></html>`,
-                    { headers: { 'Content-Type': 'text/html' } }
-                );
+                return new Response(buildAdminUI(config, nonce), { headers: { 'Content-Type': 'text/html' } });
             }
 
-            // 5. User Portal & Subscription
+            // USER PORTAL
             if (url.pathname.startsWith('/sub/')) {
                 const uuid = url.pathname.split('/')[2];
                 if (!uuid || !isValidUUID(uuid)) return new Response('Invalid UUID', { status: 400 });
@@ -640,44 +882,19 @@ export default {
                 const user = await Database.getUser(env, uuid);
                 if (!user) return new Response('User Not Found', { status: 404 });
 
-                // Update activity
+                // Update activity (non-blocking)
                 if (env.DB && ctx) ctx.waitUntil(env.DB.prepare("UPDATE users SET active = 1 WHERE uuid = ?").bind(uuid).run());
 
                 const format = url.searchParams.get('format');
                 const host = url.hostname;
 
-                if (format === 'clash') {
-                    return new Response(Subscriptions.toClash(user, host), { 
-                        headers: { 'Content-Type': 'text/yaml', 'Content-Disposition': `attachment; filename="${host}.yaml"` } 
-                    });
-                }
-                if (format === 'singbox') {
-                    return new Response(Subscriptions.toSingbox(user, host), { 
-                        headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${host}.json"` } 
-                    });
-                }
+                if (format === 'clash') return new Response(Subscriptions.toClash(user, host), { headers: { 'Content-Type': 'text/yaml', 'Content-Disposition': `attachment; filename="${host}.yaml"` } });
+                if (format === 'singbox') return new Response(Subscriptions.toSingbox(user, host), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="${host}.json"` } });
 
-                // User Web UI
-                return new Response(`<!DOCTYPE html><html><head><title>Subscription</title><style>${ASSETS.CSS}</style>
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script></head><body>
-                <div class="card">
-                    <h2>Hi, ${user.notes || 'User'}</h2>
-                    <p>Usage: ${(user.traffic_used/1073741824).toFixed(2)} GB</p>
-                    <div id="qrcode" style="background:white;padding:10px;margin:20px auto;width:fit-content"></div>
-                    <button onclick="copyClash()" class="btn">Copy Clash Config</button>
-                    <button onclick="copyLink()" class="btn" style="background:#8b5cf6">Copy VLESS Link</button>
-                </div>
-                <script>
-                    const host = "${host}";
-                    const uuid = "${user.uuid}";
-                    const link = "vless://" + uuid + "@" + host + ":443?encryption=none&security=tls&type=ws&host=" + host + "&path=%2F#" + host;
-                    new QRCode(document.getElementById("qrcode"), { text: link, width: 200, height: 200 });
-                    function copyLink() { navigator.clipboard.writeText(link); alert("Copied!"); }
-                    function copyClash() { window.location.href = location.href + "?format=clash"; }
-                </script></body></html>`, { headers: { 'Content-Type': 'text/html' } });
+                return new Response(buildUserUI(user, config), { headers: { 'Content-Type': 'text/html' } });
             }
 
-            // 6. Reverse Proxy Fallback
+            // REVERSE PROXY
             if (config.enableLandingProxy) {
                 try {
                     const proxyUrl = new URL(config.landingPageUrl);
@@ -689,39 +906,23 @@ export default {
                     });
                     proxyReq.headers.set('Host', proxyUrl.hostname);
                     proxyReq.headers.set('Referer', proxyUrl.origin);
-                    
                     const res = await fetch(proxyReq);
-                    const newHeaders = new Headers(res.headers);
-                    // Remove security headers that break iframe/proxying
-                    ['content-security-policy', 'x-frame-options', 'x-xss-protection'].forEach(h => newHeaders.delete(h));
-                    
-                    return new Response(res.body, { status: res.status, headers: newHeaders });
-                } catch (e) {
-                    console.error('Landing proxy failed', e);
-                }
+                    return res;
+                } catch (e) {}
             }
 
-            // 7. Default 404
             return new Response('404 Not Found', { status: 404 });
 
         } catch (err) {
-            // CATCH-ALL: Prevents Error 1101
-            return new Response(`Internal Worker Error:\n${err.message}\n${err.stack}`, { status: 500 });
+            return new Response(`Error: ${err.message}\n${err.stack}`, { status: 500 });
         }
     },
-
-    /**
-     * Cron Triggers
-     */
     async scheduled(event, env, ctx) {
         try {
             await Database.init(env);
             if (env.DB) {
-                // Cleanup expired users
-                await env.DB.prepare(`UPDATE users SET active = 0 WHERE active = 1 AND expiration_date IS NOT NULL AND datetime(expiration_date || ' ' || COALESCE(expiration_time, '00:00:00')) < datetime('now')`).run();
+                 await env.DB.prepare(`UPDATE users SET active = 0 WHERE active = 1 AND expiration_date IS NOT NULL AND datetime(expiration_date || ' ' || COALESCE(expiration_time, '00:00:00')) < datetime('now')`).run();
             }
-        } catch (e) {
-            console.error('Scheduled Task Error:', e);
-        }
+        } catch (e) {}
     }
 };
