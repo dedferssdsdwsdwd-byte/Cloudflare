@@ -465,7 +465,8 @@ export { ensureTablesExist, getUserData, updateUserTraffic, performHealthCheck, 
 // 🔮 VLESS QUANTUM CORE (ABSOLUTE INTELLIGENCE)
 // ============================================================================
 
-import { QuantumBrain, calculateEntropy, stringifyUUID, getUserData, updateUserTraffic } from './workers1.js';
+import { QuantumBrain, calculateEntropy, stringifyUUID } from './workers1.js';
+import { getUserData, updateUserTraffic } from './workers2.js';
 import { connect } from 'cloudflare:sockets';
 
 /**
@@ -673,8 +674,7 @@ async function handleVlessWebSocket(server, clientIp, config, env) {
                 }
 
                 // 13. Global Awareness: Update Colo Latency stats
-                // We use a rough heuristic: successful connection time
-                QuantumBrain.updateAwareness(env.CF_COLO || 'UNKNOWN', 20); // Placeholder latency
+                QuantumBrain.updateAwareness(env.CF_COLO || 'UNKNOWN', 20); 
 
                 remoteSocket.readable.pipeTo(new WritableStream({
                     write(remoteChunk) {
