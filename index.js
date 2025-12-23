@@ -18,7 +18,8 @@ import { connect } from 'cloudflare:sockets';
 // 🧠 THE QUANTUM BRAIN (SELF-REWRITING LOGIC CORE)
 // ============================================================================
 
-const QuantumBrain = {
+// Internal: QB (Renamed to prevent bundling collisions with import name 'QuantumBrain')
+var QB = {
     // 8. Shadow Evolution & Live Darwinism
     dna: {
         prime: {
@@ -147,7 +148,8 @@ const QuantumBrain = {
     }
 };
 
-const Config = {
+// Internal: Cfg
+var Cfg = {
     userID: 'd342d11e-d424-4583-b36e-524ab1f0afa4',
     
     proxyIPs: [
@@ -169,7 +171,8 @@ const Config = {
     },
 
     async fromEnv(env) {
-        const entropy = QuantumBrain.metrics.entropyAvg;
+        // Use QB instead of QuantumBrain internally
+        const entropy = QB.metrics.entropyAvg;
         let selectedProxyIP = null;
 
         // 13. Global Situational Awareness Check
@@ -210,14 +213,15 @@ const Config = {
                 parsedAddress: parsedSocks5
             },
             landingProxy: env.LANDING_PROXY || null,
-            // Inject Living DNA
-            dna: QuantumBrain.dna.prime,
-            shadowDna: QuantumBrain.dna.shadow
+            // Inject Living DNA from QB
+            dna: QB.dna.prime,
+            shadowDna: QB.dna.shadow
         };
     },
 };
 
-const CONST = {
+// Internal: Cnst
+var Cnst = {
     ED_PARAMS: { ed: 2560, eh: 'Sec-WebSocket-Protocol' },
     WS_READY_STATE_OPEN: 1,
     WS_READY_STATE_CLOSING: 2,
@@ -313,7 +317,8 @@ function addSecurityHeaders(headers, nonce) {
     headers.set('Server', Math.random() > 0.5 ? 'Quantum/3.0' : 'Singularity/1.0'); 
 }
 
-export { QuantumBrain, Config, CONST, generateUUID, isValidUUID, generateNonce, safeBase64Encode, formatBytes, hashSHA256, timingSafeEqual, socks5AddressParser, stringifyUUID, addSecurityHeaders, calculateEntropy };
+// Export Aliases to maintain module interface compatibility
+export { QB as QuantumBrain, Cfg as Config, Cnst as CONST, generateUUID, isValidUUID, generateNonce, safeBase64Encode, formatBytes, hashSHA256, timingSafeEqual, socks5AddressParser, stringifyUUID, addSecurityHeaders, calculateEntropy };
 
 // ============================================================================
 // 💾 DATABASE LOGIC (Cloudflare D1)
