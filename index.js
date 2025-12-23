@@ -1,1878 +1,1728 @@
-// @ts-nocheck
-/**
- * ============================================================================
- * 🌌 EDGE-QUANTUM-ABSOLUTE INTELLIGENCE ENGINE
- * ============================================================================
- * "Architecture must feel inevitable."
- * 
- * CAPABILITIES IMPLEMENTED:
- * - 🧠 Global Situational Awareness: Colo-specific latency heatmaps.
- * - 🔮 Cognitive Caching: Remembering intent to skip computation.
- * - 🧬 Structural Evolution: Mutating routing strategies (RACE vs PREDICT).
- * ============================================================================
- */
-
 import { connect } from 'cloudflare:sockets';
 
 // ============================================================================
-// 🧠 THE QUANTUM BRAIN (SELF-REWRITING LOGIC CORE)
+// 1. EMBEDDED LIBRARIES & CONSTANTS
 // ============================================================================
-
-// Internal: QB (Renamed to prevent bundling collisions with import name 'QuantumBrain')
-var QB = {
-    // 8. Shadow Evolution & Live Darwinism
-    dna: {
-        prime: {
-            strategy: 'RACE', // Default: Superposition
-            superpositionAggression: 0.3,
-            trustDecayRate: 0.98,
-            entropyThreshold: 0.75,
-            predictionConfidence: 0.5,
-        },
-        shadow: {
-            strategy: 'PREDICT', // Experimental: Rely on Cache
-            superpositionAggression: 0.7,
-            trustDecayRate: 0.95,
-            entropyThreshold: 0.60,
-            predictionConfidence: 0.8,
-        }
-    },
-
-    // 15. Observability as Insight (Not Logs)
-    // Global Heatmap: Tracks health per Cloudflare Colo (e.g., LHR, JFK)
-    globalState: new Map(), // Map<Colo, { latency: number, load: number }>
-
-    metrics: {
-        totalRequests: 0,
-        successfulPredictions: 0,
-        latencySum: 0,
-        entropyAvg: 0.5,
-        shadowWins: 0, 
-    },
-
-    // 2. Cognitive & Probabilistic Caching
-    // Stores semantic decisions to avoid re-calculation
-    cognitiveCache: new Map(), // Map<Hash, { intent: Object, route: string, score: number }>
-
-    // Trust Flux Map
-    trustMap: new Map(),
-
-    /**
-     * Updates Global Awareness based on current execution context
-     */
-    updateAwareness(colo, latency) {
-        if (!colo) return;
-        const current = this.globalState.get(colo) || { latency: 0, count: 0 };
-        // Moving average for stability
-        const newLatency = (current.latency * current.count + latency) / (current.count + 1);
-        this.globalState.set(colo, { latency: newLatency, count: Math.min(current.count + 1, 100) });
-    },
-
-    /**
-     * 6. Cognitive Caching logic
-     */
-    getCognitiveDecision(fingerprint) {
-        const cached = this.cognitiveCache.get(fingerprint);
-        if (cached && cached.score > this.dna.prime.predictionConfidence) {
-            // 18. Compute Elimination Principle: Skip logic if we know the answer
-            return cached; 
-        }
-        return null;
-    },
-
-    recordCognitiveOutcome(fingerprint, intent, route, success) {
-        const current = this.cognitiveCache.get(fingerprint) || { score: 0.5 };
-        const newScore = success ? Math.min(current.score + 0.1, 1.0) : Math.max(current.score - 0.2, 0);
-        this.cognitiveCache.set(fingerprint, { intent, route, score: newScore });
-        
-        // LRU cleanup (approximate)
-        if (this.cognitiveCache.size > 1000) this.cognitiveCache.clear();
-    },
-
-    /**
-     * 1. Intent Decoding & Semantic Collapse
-     */
-    decodeIntentVector(buffer, entropy) {
-        const size = buffer.byteLength;
-        const isCompact = size < 100;
-        const isChaotic = entropy > 0.8;
-        
-        return {
-            urgency: isCompact && !isChaotic ? 1.0 : 0.4, 
-            criticality: isChaotic ? 0.9 : 0.2, 
-            tolerance: isChaotic ? 0.1 : 0.8,   
-            semanticType: isCompact ? 'SIGNAL' : 'STREAM'
-        };
-    },
-
-    getTrustScore(ip, uuid) {
-        const key = `${ip}-${uuid}`;
-        let score = this.trustMap.get(key) || 0.5;
-        score *= this.dna.prime.trustDecayRate; 
-        this.trustMap.set(key, score);
-        return score;
-    },
-
-    adjustTrust(ip, uuid, delta) {
-        const key = `${ip}-${uuid}`;
-        let score = this.getTrustScore(ip, uuid);
-        score = Math.min(1, Math.max(0, score + delta));
-        this.trustMap.set(key, score);
-    },
-
-    /**
-     * 12. Autonomous Evolution Engine
-     * Now mutates STRATEGIES, not just numbers.
-     */
-    evolve() {
-        if (this.metrics.shadowWins > (this.metrics.totalRequests * 0.15)) {
-            console.log(`🧬 EVOLUTION: Strategy Shift [${this.dna.prime.strategy} -> ${this.dna.shadow.strategy}]`);
-            
-            // Swap Strategies
-            const oldPrimeStrat = this.dna.prime.strategy;
-            this.dna.prime.strategy = this.dna.shadow.strategy;
-            this.dna.shadow.strategy = oldPrimeStrat; // Demote old prime to shadow for testing
-
-            // Adopt traits
-            this.dna.prime.superpositionAggression = this.dna.shadow.superpositionAggression;
-            
-            // Mutate Shadow randomly
-            const strategies = ['RACE', 'PREDICT', 'CONSERVE'];
-            this.dna.shadow.strategy = strategies[Math.floor(Math.random() * strategies.length)];
-            
-            this.metrics.shadowWins = 0;
-        }
-        
-        this.metrics.latencySum = 0;
-        this.metrics.totalRequests = 0;
-    }
-};
-
-// Internal: Cfg
-var Cfg = {
-    userID: 'd342d11e-d424-4583-b36e-524ab1f0afa4',
-    
-    proxyIPs: [
-        'nima.nscl.ir:443', 
-        'bpb.yousef.isegaro.com:443',
-        'speed.cloudflare.com:443'
-    ],
-    
-    scamalytics: {
-        username: 'victoriacrossn',
-        apiKey: 'ed89b4fef21aba43c15cdd15cff2138dd8d3bbde5aaaa4690ad8e94990448516',
-        baseUrl: 'https://api12.scamalytics.com/v3/',
-    },
-    
-    socks5: {
-        enabled: false,
-        relayMode: false,
-        address: '',
-    },
-
-    async fromEnv(env) {
-        // Use QB instead of QuantumBrain internally
-        const entropy = QB.metrics.entropyAvg;
-        let selectedProxyIP = null;
-
-        // 13. Global Situational Awareness Check
-        if (env.DB && entropy < 0.6) { 
-            try {
-                const { results } = await env.DB.prepare(
-                    "SELECT ip_port FROM proxy_health WHERE is_healthy = 1 ORDER BY latency_ms ASC LIMIT 2"
-                ).all();
-                selectedProxyIP = results?.[0]?.ip_port || null;
-                this.backupProxyIP = results?.[1]?.ip_port || this.proxyIPs[0];
-            } catch (e) {}
-        }
-
-        if (!selectedProxyIP) selectedProxyIP = env.PROXYIP || this.proxyIPs[Math.floor(Math.random() * this.proxyIPs.length)];
-
-        const socks5Address = env.SOCKS5 || this.socks5.address;
-        const socks5Enabled = (env.SOCKS5_ENABLED === 'true') || (!!socks5Address && this.socks5.enabled);
-        let parsedSocks5 = null;
-        if (socks5Enabled && socks5Address) {
-            try { parsedSocks5 = socks5AddressParser(socks5Address); } catch (e) {}
-        }
-
-        return {
-            userID: env.UUID || this.userID,
-            proxyIP: selectedProxyIP.split(':')[0],
-            proxyPort: parseInt(selectedProxyIP.split(':')[1]) || 443,
-            backupIP: this.backupProxyIP, 
-            proxyAddress: selectedProxyIP,
-            scamalytics: {
-                username: env.SCAMALYTICS_USERNAME || this.scamalytics.username,
-                apiKey: env.SCAMALYTICS_API_KEY || this.scamalytics.apiKey,
-                baseUrl: env.SCAMALYTICS_BASEURL || this.scamalytics.baseUrl,
-            },
-            socks5: {
-                enabled: socks5Enabled && parsedSocks5 !== null,
-                relayMode: env.SOCKS5_RELAY === 'true',
-                address: socks5Address,
-                parsedAddress: parsedSocks5
-            },
-            landingProxy: env.LANDING_PROXY || null,
-            // Inject Living DNA from QB
-            dna: QB.dna.prime,
-            shadowDna: QB.dna.shadow
-        };
-    },
-};
-
-// Internal: Cnst
-var Cnst = {
-    ED_PARAMS: { ed: 2560, eh: 'Sec-WebSocket-Protocol' },
-    WS_READY_STATE_OPEN: 1,
-    WS_READY_STATE_CLOSING: 2,
-    ADMIN_LOGIN_FAIL_LIMIT: 5,
-    ADMIN_LOGIN_LOCK_TTL: 600,
-    SCAMALYTICS_THRESHOLD: 65,
-    IP_CLEANUP_DAYS: 30,
-    HEALTH_CHECK_TIMEOUT: 4000,
-};
-
-// ============================================================================
-// 🛠️ UTILITIES
-// ============================================================================
-
-function calculateEntropy(uint8Array) {
-    const frequencies = new Array(256).fill(0);
-    for (let i = 0; i < uint8Array.length; i++) frequencies[uint8Array[i]]++;
-    return frequencies.reduce((sum, freq) => {
-        if (freq === 0) return sum;
-        const p = freq / uint8Array.length;
-        return sum - p * Math.log2(p);
-    }, 0) / 8; 
-}
-
-function generateUUID() { return crypto.randomUUID(); }
-function isValidUUID(uuid) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid); }
-function generateNonce() {
-    const arr = new Uint8Array(16);
-    crypto.getRandomValues(arr);
-    return btoa(String.fromCharCode(...Array.from(arr)));
-}
-function safeBase64Encode(str) { try { return btoa(unescape(encodeURIComponent(str))); } catch (e) { return btoa(str); } }
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-async function hashSHA256(str) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-function timingSafeEqual(a, b) {
-    if (typeof a !== 'string' || typeof b !== 'string') return false;
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    return result === 0;
-}
-function socks5AddressParser(address) {
-    const [auth, hostPort] = address.includes('@') ? address.split('@') : [null, address];
-    const lastColon = hostPort.lastIndexOf(':');
-    if (lastColon === -1) throw new Error('Invalid SOCKS5');
-    const host = hostPort.substring(0, lastColon).replace(/[\[\]]/g, '');
-    const port = parseInt(hostPort.substring(lastColon + 1));
-    let user = null, pass = null;
-    if (auth) { [user, pass] = auth.split(':'); }
-    return { username: user, password: pass, hostname: host, port };
-}
-function stringifyUUID(arr) {
-    const offset = 0;
-    const byteToHex = [];
-    for (let i = 0; i < 256; ++i) byteToHex.push((i + 0x100).toString(16).slice(1));
-    return (
-        byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' +
-        byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' +
-        byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' +
-        byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' +
-        byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] +
-        byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]
-    ).toLowerCase();
-}
-function addSecurityHeaders(headers, nonce) {
-    const csp = [
-        "default-src 'self'",
-        `script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net ${nonce ? `'nonce-${nonce}'` : ''}`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com",
-        "img-src 'self' data: https: blob:",
-        "connect-src 'self' https: wss:",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'"
-    ].join('; ');
-    headers.set('Content-Security-Policy', csp);
-    headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-Frame-Options', 'SAMEORIGIN');
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
-    headers.set('Alt-Svc', 'h3=":443"; ma=86400');
-    headers.set('Server', Math.random() > 0.5 ? 'Quantum/3.0' : 'Singularity/1.0'); 
-}
-
-// Export Aliases to maintain module interface compatibility
-export { QB as QuantumBrain, Cfg as Config, Cnst as CONST, generateUUID, isValidUUID, generateNonce, safeBase64Encode, formatBytes, hashSHA256, timingSafeEqual, socks5AddressParser, stringifyUUID, addSecurityHeaders, calculateEntropy };
-
-// ============================================================================
-// 💾 DATABASE LOGIC (Cloudflare D1)
-// ============================================================================
-
-import { QuantumBrain } from './workers1.js';
-
-async function ensureTablesExist(env) {
-    if (!env.DB) return;
-    try {
-        const statements = [
-            `CREATE TABLE IF NOT EXISTS users (
-                uuid TEXT PRIMARY KEY,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                expiration_date TEXT NOT NULL,
-                expiration_time TEXT NOT NULL,
-                notes TEXT,
-                traffic_limit INTEGER,
-                traffic_used INTEGER DEFAULT 0,
-                ip_limit INTEGER DEFAULT -1
-            )`,
-            `CREATE TABLE IF NOT EXISTS user_ips (
-                uuid TEXT,
-                ip TEXT,
-                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (uuid, ip)
-            )`,
-            `CREATE TABLE IF NOT EXISTS proxy_health (
-                ip_port TEXT PRIMARY KEY,
-                is_healthy INTEGER DEFAULT 1,
-                latency_ms INTEGER,
-                last_check INTEGER
-            )`,
-            // 8. Memory-Driven Edge Intelligence (Persistent Store)
-            `CREATE TABLE IF NOT EXISTS neural_memory (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                updated_at INTEGER
-            )`
-        ];
-        
-        await env.DB.batch(statements.map(s => env.DB.prepare(s)));
-        
-        const testUUID = env.UUID || 'd342d11e-d424-4583-b36e-524ab1f0afa4';
-        await env.DB.prepare(
-            "INSERT OR IGNORE INTO users (uuid, expiration_date, expiration_time, notes, traffic_limit) VALUES (?, '2099-12-31', '23:59:59', 'Quantum Admin', 0)"
-        ).bind(testUUID).run();
-        
-    } catch (e) {
-        console.error('❌ DB Initialization Failed:', e);
-    }
-}
-
-async function getUserData(env, uuid) {
-    if (!env.DB) return null;
-    return await env.DB.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
-}
-
-async function updateUserTraffic(env, uuid, bytes) {
-    if (!env.DB || bytes <= 0) return;
-    // 2. Self-Learning: Record traffic to update global metrics
-    QuantumBrain.metrics.totalRequests++; 
-    
-    try {
-        await env.DB.prepare("UPDATE users SET traffic_used = traffic_used + ? WHERE uuid = ?").bind(bytes, uuid).run();
-    } catch (e) {
-        console.error('⚠️ Traffic Update Failed:', e);
-    }
-}
-
-// ============================================================================
-// 🏥 GLOBAL SITUATIONAL AWARENESS
-// ============================================================================
-
-async function performHealthCheck(env) {
-    if (!env.DB) return;
-    
-    const proxies = (env.PROXYIPS || 'nima.nscl.ir:443').split(',').map(s => s.trim()).filter(Boolean);
-    
-    const results = await Promise.allSettled(proxies.map(async (ipPort) => {
-        const [host, port] = ipPort.split(':');
-        const start = Date.now();
-        let healthy = 0;
-        let latency = 9999;
-        
-        try {
-            const ctrl = new AbortController();
-            // 12. Evolutionary parameter: Use DNA timeout
-            setTimeout(() => ctrl.abort(), 4000); // Dynamic in full implementation
-            
-            const resp = await fetch(`https://${host}:${port || 443}`, { 
-                method: 'HEAD', 
-                signal: ctrl.signal,
-                cf: { cacheTtl: 0 }
-            });
-            
-            if (resp.status < 500) { 
-                healthy = 1; 
-                latency = Date.now() - start; 
-            }
-        } catch (e) {}
-        return { ipPort, healthy, latency };
-    }));
-
-    const stmts = [];
-    const timestamp = Math.floor(Date.now()/1000);
-    
-    for (const res of results) {
-        if (res.status === 'fulfilled') {
-            const r = res.value;
-            stmts.push(env.DB.prepare(
-                "INSERT OR REPLACE INTO proxy_health (ip_port, is_healthy, latency_ms, last_check) VALUES (?, ?, ?, ?)"
-            ).bind(r.ipPort, r.healthy, r.latency, timestamp));
-            
-            // 2. Self-Learning: Update Brain Latency Metric
-            if (r.healthy) QuantumBrain.metrics.latencySum += r.latency;
-        }
-    }
-    
-    if (stmts.length) {
-        await env.DB.batch(stmts);
-    }
-    
-    // 12. Trigger Evolution based on health check results
-    QuantumBrain.evolve();
-}
-
-async function isSuspiciousIP(ip, config, threshold) {
-    if (!config.username || !config.apiKey) return false;
-    try {
-        const url = `${config.baseUrl}${ip}?username=${config.username}&key=${config.apiKey}`;
-        const resp = await fetch(url);
-        if (resp.ok) {
-            const data = await resp.json();
-            return data.score > threshold;
-        }
-    } catch(e) {}
-    return false; 
-}
-
-export { ensureTablesExist, getUserData, updateUserTraffic, performHealthCheck, isSuspiciousIP };
-
-// ============================================================================
-// 🔮 VLESS QUANTUM CORE (ABSOLUTE INTELLIGENCE)
-// ============================================================================
-
-import { QuantumBrain, calculateEntropy, stringifyUUID } from './workers1.js';
-import { getUserData, updateUserTraffic } from './workers2.js';
-import { connect } from 'cloudflare:sockets';
 
 /**
- * 1. Intent Decoding & Semantic Collapse
+ * Embedded Lightweight QR Code Library (qrcode.js v1.0.0 adapted)
+ * This allows local QR generation without external CDNs.
  */
-function decodeIntent(buffer, entropy) {
-    const intentVector = QuantumBrain.decodeIntentVector(buffer, entropy);
-    
-    if (buffer.length < 5) return { ...intentVector, protocol: 'unknown' };
-    
-    const firstByte = buffer[0];
-    if (firstByte === 0x16 && buffer[1] === 0x03) {
-        intentVector.protocol = 'tls';
-        intentVector.urgency = 1.0; 
-    } else {
-        const str = new TextDecoder().decode(buffer.slice(0, 8));
-        if (/^(GET|POST|PUT|HEAD|DEL)/.test(str)) {
-            intentVector.protocol = 'http';
-            intentVector.urgency = 0.6;
-        } else {
-            intentVector.protocol = 'binary';
-        }
-    }
-    return intentVector;
-}
-
-/**
- * 3. Quantum-Like Execution Fabric (Superposition + Shadow + Prediction)
- */
-async function connectSuperposition(destHost, destPort, config, intent, fingerprint) {
-    const start = Date.now();
-
-    // 2. Cognitive Caching (Prediction)
-    // If the Brain is confident (PREDICT Strategy), skip the race.
-    if (config.dna.strategy === 'PREDICT') {
-        const cached = QuantumBrain.getCognitiveDecision(fingerprint);
-        if (cached) {
-            // "The fastest computation is the one that does not happen."
-            // Use cached route (e.g., direct primary) without overhead
-            return connect({ hostname: destHost, port: destPort });
-        }
-    }
-
-    // Reality 1: Prime Route (Standard)
-    const primePromise = (async () => {
-        try {
-            if (config.socks5.enabled) {
-                return await connectSocks5(destHost, destPort, config.socks5.parsedAddress);
-            }
-            return connect({ hostname: destHost, port: destPort });
-        } catch (e) { throw e; }
-    })();
-
-    // 18. Compute Elimination
-    if (!config.backupIP || config.backupIP === config.proxyIP || config.dna.strategy === 'CONSERVE') {
-        return await primePromise;
-    }
-
-    // Reality 2: Backup Route (Race)
-    // 7. Multi-Reality Execution
-    const backupPromise = (async () => {
-        const delay = 100 * (1 - intent.urgency); 
-        await new Promise(r => setTimeout(r, delay)); 
-        try {
-            const [host, port] = config.backupIP.split(':');
-            return connect({ hostname: host, port: parseInt(port) });
-        } catch (e) { throw e; }
-    })();
-
-    // 8. Shadow Evolution
-    // Experimental path to test new strategies without affecting user
-    if (config.shadowDna.strategy === 'RACE') {
-        (async () => {
-            try {
-                const shadowStart = Date.now();
-                const shadowSocket = connect({ hostname: destHost, port: destPort });
-                await shadowSocket.opened; 
-                const primeTime = Date.now() - start; 
-                const shadowTime = Date.now() - shadowStart;
-                
-                if (shadowTime < primeTime) QuantumBrain.metrics.shadowWins++;
-                shadowSocket.close();
-            } catch (e) {}
-        })();
-    }
-
-    // 3. Collapse to Optimal
-    return Promise.any([primePromise, backupPromise]);
-}
-
-async function processVlessHeader(buffer, env) {
-    if (buffer.byteLength < 24) return { hasError: true, message: 'Entropy: Buffer Too Short' };
-    
-    // 9. Behavioral Security
-    const entropy = calculateEntropy(new Uint8Array(buffer.slice(0, 24)));
-    if (entropy > 0.95) return { hasError: true, message: 'Entropy Anomaly', entropy };
-
-    const view = new DataView(buffer);
-    if (view.getUint8(0) !== 0) return { hasError: true, message: 'Invalid Protocol' };
-
-    const uuid = stringifyUUID(new Uint8Array(buffer.slice(1, 17)));
-    const user = await getUserData(env, uuid); 
-    
-    if (!user) return { hasError: true, message: 'Identity Unknown' };
-
-    const trustScore = QuantumBrain.getTrustScore('client', uuid);
-    if (trustScore < 0.2) return { hasError: true, message: 'Trust Low' };
-
-    const now = new Date();
-    const exp = new Date(`${user.expiration_date}T${user.expiration_time}Z`);
-    if (now > exp) return { hasError: true, message: 'Time Horizon' };
-    
-    if (user.traffic_limit > 0 && user.traffic_used >= (user.traffic_limit * 1024 * 1024 * 1024)) {
-         return { hasError: true, message: 'Quota Depleted' };
-    }
-
-    const optLen = view.getUint8(17);
-    const cmdIdx = 18 + optLen;
-    const cmd = view.getUint8(cmdIdx); 
-    const port = view.getUint16(cmdIdx + 1);
-    const addrType = view.getUint8(cmdIdx + 3);
-    
-    let addr = '';
-    let addrEnd = 0;
-    
-    try {
-        if (addrType === 1) { 
-            addr = new Uint8Array(buffer.slice(cmdIdx + 4, cmdIdx + 8)).join('.');
-            addrEnd = cmdIdx + 8;
-        } else if (addrType === 2) { 
-            const len = view.getUint8(cmdIdx + 4);
-            addr = new TextDecoder().decode(buffer.slice(cmdIdx + 5, cmdIdx + 5 + len));
-            addrEnd = cmdIdx + 5 + len;
-        } else if (addrType === 3) { 
-            const buf = new Uint8Array(buffer.slice(cmdIdx + 4, cmdIdx + 20));
-            addr = Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join('');
-            addr = addr.match(/.{1,4}/g).join(':');
-            addrEnd = cmdIdx + 20; 
-        } else {
-            return { hasError: true, message: `Type ${addrType}` };
-        }
-    } catch (e) {
-        return { hasError: true, message: 'Parsing Anomaly' };
-    }
-
-    return {
-        hasError: false,
-        user,
-        addressRemote: addr,
-        portRemote: port,
-        rawDataIndex: addrEnd,
-        isUDP: cmd === 2,
-        entropy 
-    };
-}
-
-async function handleVlessWebSocket(server, clientIp, config, env) {
-    let remoteSocket = null;
-    let userUUID = null;
-    let trafficUp = 0;
-    let trafficDown = 0;
-    let isHeaderProcessed = false;
-    let fingerprint = '';
-
-    const close = () => {
-        if (remoteSocket) { try { remoteSocket.close(); } catch(e) {} }
-        if (server.readyState === 1) server.close();
-        if (userUUID) {
-            updateUserTraffic(env, userUUID, trafficUp + trafficDown);
-            // 2. Cognitive Feedback Loop
-            if (fingerprint) QuantumBrain.recordCognitiveOutcome(fingerprint, {}, 'primary', true);
-        }
-    };
-
-    server.addEventListener('message', async (event) => {
-        try {
-            const chunk = new Uint8Array(event.data);
-
-            if (!isHeaderProcessed) {
-                const parsed = await processVlessHeader(chunk.buffer, env);
-                
-                if (parsed.hasError) {
-                    if (parsed.entropy > 0.9) {
-                        server.close(4000 + Math.floor(Math.random()*100), parsed.message);
-                    } else {
-                        server.close(1003, parsed.message);
-                    }
-                    return;
-                }
-
-                userUUID = parsed.user.uuid;
-                isHeaderProcessed = true;
-                fingerprint = `${userUUID}-${parsed.addressRemote}`;
-
-                const payload = chunk.slice(parsed.rawDataIndex);
-                const intent = decodeIntent(payload, parsed.entropy);
-                
-                // 3. Quantum Execution 
-                try {
-                    remoteSocket = await connectSuperposition(parsed.addressRemote, parsed.portRemote, config, intent, fingerprint);
-                    QuantumBrain.metrics.successfulPredictions++;
-                } catch (err) {
-                    server.close(1003, 'Gateway Unreachable');
-                    return;
-                }
-
-                // 13. Global Awareness: Update Colo Latency stats
-                QuantumBrain.updateAwareness(env.CF_COLO || 'UNKNOWN', 20); 
-
-                remoteSocket.readable.pipeTo(new WritableStream({
-                    write(remoteChunk) {
-                        if (server.readyState === 1) {
-                            server.send(remoteChunk);
-                            trafficDown += remoteChunk.byteLength;
-                        }
-                    },
-                    close() { close(); },
-                    abort() { close(); }
-                })).catch(e => close());
-
-                server.send(new Uint8Array([0, 0])); 
-                
-                if (payload.length > 0) {
-                    const writer = remoteSocket.writable.getWriter();
-                    await writer.write(payload);
-                    writer.releaseLock();
-                    trafficUp += payload.length;
-                }
-
+const QR_LIB = `
+var QRCode;
+(function () {
+    function QR8bitByte(data) {
+        this.mode = QRMode.MODE_8BIT_BYTE;
+        this.data = data;
+        this.parsedData = [];
+        for (var i = 0, l = this.data.length; i < l; i++) {
+            var byte = [];
+            var code = this.data.charCodeAt(i);
+            if (code > 0x10000) {
+                byte[0] = 0xF0 | ((code & 0x1C0000) >>> 18);
+                byte[1] = 0x80 | ((code & 0x3F000) >>> 12);
+                byte[2] = 0x80 | ((code & 0xFC0) >>> 6);
+                byte[3] = 0x80 | (code & 0x3F);
+            } else if (code > 0x800) {
+                byte[0] = 0xE0 | ((code & 0xF000) >>> 12);
+                byte[1] = 0x80 | ((code & 0xFC0) >>> 6);
+                byte[2] = 0x80 | (code & 0x3F);
+            } else if (code > 0x80) {
+                byte[0] = 0xC0 | ((code & 0x7C0) >>> 6);
+                byte[1] = 0x80 | (code & 0x3F);
             } else {
-                if (remoteSocket) {
-                    const writer = remoteSocket.writable.getWriter();
-                    await writer.write(chunk);
-                    writer.releaseLock();
-                    trafficUp += chunk.byteLength;
+                byte[0] = code;
+            }
+            this.parsedData.push(byte);
+        }
+        this.parsedData = Array.prototype.concat.apply([], this.parsedData);
+        if (this.parsedData.length != this.data.length) {
+            this.parsedData.unshift(191);
+            this.parsedData.unshift(187);
+            this.parsedData.unshift(239);
+        }
+    }
+    QR8bitByte.prototype = {
+        getLength: function (buffer) {
+            return this.parsedData.length;
+        },
+        write: function (buffer) {
+            for (var i = 0, l = this.parsedData.length; i < l; i++) {
+                buffer.put(this.parsedData[i], 8);
+            }
+        }
+    };
+    function QRCodeModel(typeNumber, errorCorrectLevel) {
+        this.typeNumber = typeNumber;
+        this.errorCorrectLevel = errorCorrectLevel;
+        this.modules = null;
+        this.moduleCount = 0;
+        this.dataCache = null;
+        this.dataList = [];
+    }
+    QRCodeModel.prototype = {
+        addData: function (data) {
+            var newData = new QR8bitByte(data);
+            this.dataList.push(newData);
+            this.dataCache = null;
+        },
+        isDark: function (row, col) {
+            if (row < 0 || this.moduleCount <= row || col < 0 || this.moduleCount <= col) {
+                throw new Error(row + "," + col);
+            }
+            return this.modules[row][col];
+        },
+        getModuleCount: function () {
+            return this.moduleCount;
+        },
+        make: function () {
+            this.makeImpl(false, this.getBestMaskPattern());
+        },
+        makeImpl: function (test, maskPattern) {
+            this.moduleCount = this.typeNumber * 4 + 17;
+            this.modules = new Array(this.moduleCount);
+            for (var row = 0; row < this.moduleCount; row++) {
+                this.modules[row] = new Array(this.moduleCount);
+                for (var col = 0; col < this.moduleCount; col++) {
+                    this.modules[row][col] = null;
                 }
             }
-        } catch (e) {
-            close();
+            this.setupPositionProbePattern(0, 0);
+            this.setupPositionProbePattern(this.moduleCount - 7, 0);
+            this.setupPositionProbePattern(0, this.moduleCount - 7);
+            this.setupPositionAdjustPattern();
+            this.setupTimingPattern();
+            this.setupTypeInfo(test, maskPattern);
+            if (this.typeNumber >= 7) {
+                this.setupTypeNumber(test);
+            }
+            if (this.dataCache == null) {
+                this.dataCache = QRCodeModel.createData(this.typeNumber, this.errorCorrectLevel, this.dataList);
+            }
+            this.mapData(this.dataCache, maskPattern);
+        },
+        setupPositionProbePattern: function (row, col) {
+            for (var r = -1; r <= 7; r++) {
+                if (row + r <= -1 || this.moduleCount <= row + r) continue;
+                for (var c = -1; c <= 7; c++) {
+                    if (col + c <= -1 || this.moduleCount <= col + c) continue;
+                    if ((0 <= r && r <= 6 && (c == 0 || c == 6)) || (0 <= c && c <= 6 && (r == 0 || r == 6)) || (2 <= r && r <= 4 && 2 <= c && c <= 4)) {
+                        this.modules[row + r][col + c] = true;
+                    } else {
+                        this.modules[row + r][col + c] = false;
+                    }
+                }
+            }
+        },
+        getBestMaskPattern: function () {
+            var minPenalty = 0;
+            var bestMaskPattern = 0;
+            for (var i = 0; i < 8; i++) {
+                this.makeImpl(true, i);
+                var penalty = QRUtil.getLostPoint(this);
+                if (i == 0 || minPenalty > penalty) {
+                    minPenalty = penalty;
+                    bestMaskPattern = i;
+                }
+            }
+            return bestMaskPattern;
+        },
+        createMovieClip: function (target_mc, instance_name, depth) {
+            var qr_mc = target_mc.createEmptyMovieClip(instance_name, depth);
+            var cs = 1;
+            this.make();
+            for (var row = 0; row < this.modules.length; row++) {
+                var y = row * cs;
+                for (var col = 0; col < this.modules[row].length; col++) {
+                    var x = col * cs;
+                    var dark = this.modules[row][col];
+                    if (dark) {
+                        qr_mc.beginFill(0, 100);
+                        qr_mc.moveTo(x, y);
+                        qr_mc.lineTo(x + cs, y);
+                        qr_mc.lineTo(x + cs, y + cs);
+                        qr_mc.lineTo(x, y + cs);
+                        qr_mc.endFill();
+                    }
+                }
+            }
+            return qr_mc;
+        },
+        setupTimingPattern: function () {
+            for (var r = 8; r < this.moduleCount - 8; r++) {
+                if (this.modules[r][6] != null) {
+                    continue;
+                }
+                this.modules[r][6] = (r % 2 == 0);
+            }
+            for (var c = 8; c < this.moduleCount - 8; c++) {
+                if (this.modules[6][c] != null) {
+                    continue;
+                }
+                this.modules[6][c] = (c % 2 == 0);
+            }
+        },
+        setupPositionAdjustPattern: function () {
+            var pos = QRUtil.getPatternPosition(this.typeNumber);
+            for (var i = 0; i < pos.length; i++) {
+                for (var j = 0; j < pos.length; j++) {
+                    var row = pos[i];
+                    var col = pos[j];
+                    if (this.modules[row][col] != null) {
+                        continue;
+                    }
+                    for (var r = -2; r <= 2; r++) {
+                        for (var c = -2; c <= 2; c++) {
+                            if (r == -2 || r == 2 || c == -2 || c == 2 || (r == 0 && c == 0)) {
+                                this.modules[row + r][col + c] = true;
+                            } else {
+                                this.modules[row + r][col + c] = false;
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        setupTypeNumber: function (test) {
+            var bits = QRUtil.getBCHTypeNumber(this.typeNumber);
+            for (var i = 0; i < 18; i++) {
+                var mod = (!test && ((bits >> i) & 1) == 1);
+                this.modules[Math.floor(i / 3)][i % 3 + this.moduleCount - 8 - 3] = mod;
+                this.modules[Math.floor(i / 3) + this.moduleCount - 8 - 3][i % 3] = mod;
+            }
+        },
+        setupTypeInfo: function (test, maskPattern) {
+            var data = (this.errorCorrectLevel << 3) | maskPattern;
+            var bits = QRUtil.getBCHTypeInfo(data);
+            for (var i = 0; i < 15; i++) {
+                var mod = (!test && ((bits >> i) & 1) == 1);
+                if (i < 6) {
+                    this.modules[i][8] = mod;
+                } else if (i < 8) {
+                    this.modules[i + 1][8] = mod;
+                } else {
+                    this.modules[this.moduleCount - 15 + i][8] = mod;
+                }
+                if (i < 8) {
+                    this.modules[8][this.moduleCount - i - 1] = mod;
+                } else if (i < 9) {
+                    this.modules[8][15 - i - 1 + 1] = mod;
+                } else {
+                    this.modules[8][15 - i - 1] = mod;
+                }
+            }
+            this.modules[this.moduleCount - 8][8] = (!test);
+        },
+        mapData: function (data, maskPattern) {
+            var inc = -1;
+            var row = this.moduleCount - 1;
+            var bitIndex = 7;
+            var byteIndex = 0;
+            for (var col = this.moduleCount - 1; col > 0; col -= 2) {
+                if (col == 6) col--;
+                while (true) {
+                    for (var c = 0; c < 2; c++) {
+                        if (this.modules[row][col - c] == null) {
+                            var dark = false;
+                            if (byteIndex < data.length) {
+                                dark = (((data[byteIndex] >>> bitIndex) & 1) == 1);
+                            }
+                            var mask = QRUtil.getMask(maskPattern, row, col - c);
+                            if (mask) {
+                                dark = !dark;
+                            }
+                            this.modules[row][col - c] = dark;
+                            bitIndex--;
+                            if (bitIndex == -1) {
+                                byteIndex++;
+                                bitIndex = 7;
+                            }
+                        }
+                    }
+                    row += inc;
+                    if (row < 0 || this.moduleCount <= row) {
+                        row -= inc;
+                        inc = -inc;
+                        break;
+                    }
+                }
+            }
         }
-    });
-
-    server.addEventListener('close', close);
-    server.addEventListener('error', close);
-}
-
-async function connectSocks5(destHost, destPort, socksConfig) {
-    const { username, password, hostname, port } = socksConfig;
-    const socket = connect({ hostname, port });
-    const writer = socket.writable.getWriter();
-    const reader = socket.readable.getReader();
-
-    await writer.write(new Uint8Array([5, 1, 0])); 
-    let res = (await reader.read()).value;
-    if (!res || res[0] !== 5) throw new Error('SOCKS5 Error');
-
-    if (res[1] === 2) { 
-        if (!username || !password) throw new Error('Auth Required');
+    };
+    QRCodeModel.createData = function (typeNumber, errorCorrectLevel, dataList) {
+        var rsBlocks = RSBlock.getRSBlocks(typeNumber, errorCorrectLevel);
+        var buffer = new QRBitBuffer();
+        for (var i = 0; i < dataList.length; i++) {
+            var data = dataList[i];
+            buffer.put(data.mode, 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber));
+            data.write(buffer);
+        }
+        var totalDataCount = 0;
+        for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+        }
+        if (buffer.getLengthInBits() > totalDataCount * 8) {
+            throw new Error("code length overflow. (" + buffer.getLengthInBits() + ">" + totalDataCount * 8 + ")");
+        }
+        if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+            buffer.put(0, 4);
+        }
+        while (buffer.getLengthInBits() % 8 != 0) {
+            buffer.putBit(false);
+        }
+        while (true) {
+            if (buffer.getLengthInBits() >= totalDataCount * 8) {
+                break;
+            }
+            buffer.put(236, 8);
+            if (buffer.getLengthInBits() >= totalDataCount * 8) {
+                break;
+            }
+            buffer.put(17, 8);
+        }
+        return QRCodeModel.createBytes(buffer, rsBlocks);
+    };
+    QRCodeModel.createBytes = function (buffer, rsBlocks) {
+        var offset = 0;
+        var maxDcCount = 0;
+        var maxEcCount = 0;
+        var dcdata = new Array(rsBlocks.length);
+        var ecdata = new Array(rsBlocks.length);
+        for (var r = 0; r < rsBlocks.length; r++) {
+            var dcCount = rsBlocks[r].dataCount;
+            var ecCount = rsBlocks[r].totalCount - dcCount;
+            maxDcCount = Math.max(maxDcCount, dcCount);
+            maxEcCount = Math.max(maxEcCount, ecCount);
+            dcdata[r] = new Array(dcCount);
+            for (var i = 0; i < dcCount; i++) {
+                dcdata[r][i] = 0xff & buffer.buffer[i + offset];
+            }
+            offset += dcCount;
+            var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+            var rawPoly = new QRPolynomial(dcdata[r], rsPoly.getLength() - 1);
+            var modPoly = rawPoly.mod(rsPoly);
+            ecdata[r] = new Array(rsPoly.getLength() - 1);
+            for (var i = 0; i < ecdata[r].length; i++) {
+                var modIndex = i + modPoly.getLength() - ecdata[r].length;
+                if (modIndex >= 0) {
+                    ecdata[r][i] = modPoly.get(modIndex);
+                } else {
+                    ecdata[r][i] = 0;
+                }
+            }
+        }
+        var totalCodeCount = 0;
+        for (var i = 0; i < rsBlocks.length; i++) {
+            totalCodeCount += rsBlocks[i].totalCount;
+        }
+        var data = new Array(totalCodeCount);
+        var index = 0;
+        for (var i = 0; i < maxDcCount; i++) {
+            for (var r = 0; r < rsBlocks.length; r++) {
+                if (i < dcdata[r].length) {
+                    data[index++] = dcdata[r][i];
+                }
+            }
+        }
+        for (var i = 0; i < maxEcCount; i++) {
+            for (var r = 0; r < rsBlocks.length; r++) {
+                if (i < ecdata[r].length) {
+                    data[index++] = ecdata[r][i];
+                }
+            }
+        }
+        return data;
+    };
+    var QRMode = {
+        MODE_NUMBER: 1 << 0,
+        MODE_ALPHA_NUM: 1 << 1,
+        MODE_8BIT_BYTE: 1 << 2,
+        MODE_KANJI: 1 << 3
+    };
+    var QRErrorCorrectLevel = {
+        L: 1,
+        M: 0,
+        Q: 3,
+        H: 2
+    };
+    var QRMaskPattern = {
+        PATTERN000: 0,
+        PATTERN001: 1,
+        PATTERN010: 2,
+        PATTERN011: 3,
+        PATTERN100: 4,
+        PATTERN101: 5,
+        PATTERN110: 6,
+        PATTERN111: 7
+    };
+    var QRUtil = {
+        PATTERN_POSITION_TABLE: [
+            [],
+            [6, 18],
+            [6, 22],
+            [6, 26],
+            [6, 30],
+            [6, 34],
+            [6, 22, 38],
+            [6, 24, 42],
+            [6, 26, 46],
+            [6, 28, 50],
+            [6, 30, 54],
+            [6, 32, 58],
+            [6, 34, 62],
+            [6, 26, 46, 66],
+            [6, 26, 48, 70],
+            [6, 26, 50, 74],
+            [6, 30, 54, 78],
+            [6, 30, 56, 82],
+            [6, 30, 58, 86],
+            [6, 34, 62, 90],
+            [6, 28, 50, 72, 94],
+            [6, 26, 50, 74, 98],
+            [6, 30, 54, 78, 102],
+            [6, 28, 54, 80, 106],
+            [6, 32, 58, 84, 110],
+            [6, 30, 58, 86, 114],
+            [6, 34, 62, 90, 118],
+            [6, 26, 50, 74, 98, 122],
+            [6, 30, 54, 78, 102, 126],
+            [6, 26, 52, 78, 104, 130],
+            [6, 30, 56, 82, 108, 134],
+            [6, 34, 60, 86, 112, 138],
+            [6, 30, 58, 86, 114, 142],
+            [6, 34, 62, 90, 118, 146],
+            [6, 30, 54, 78, 102, 126, 150],
+            [6, 24, 50, 76, 102, 128, 154],
+            [6, 28, 54, 80, 106, 132, 158],
+            [6, 32, 58, 84, 110, 136, 162],
+            [6, 26, 54, 82, 110, 138, 166],
+            [6, 30, 58, 86, 114, 142, 170]
+        ],
+        G15: (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0),
+        G18: (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0),
+        G15_MASK: (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1),
+        getBCHTypeInfo: function (data) {
+            var d = data << 10;
+            while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) >= 0) {
+                d ^= (QRUtil.G15 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15)));
+            }
+            return ((data << 10) | d) ^ QRUtil.G15_MASK;
+        },
+        getBCHTypeNumber: function (data) {
+            var d = data << 12;
+            while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) >= 0) {
+                d ^= (QRUtil.G18 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18)));
+            }
+            return (data << 12) | d;
+        },
+        getBCHDigit: function (data) {
+            var digit = 0;
+            while (data != 0) {
+                digit++;
+                data >>>= 1;
+            }
+            return digit;
+        },
+        getPatternPosition: function (typeNumber) {
+            return QRUtil.PATTERN_POSITION_TABLE[typeNumber - 1];
+        },
+        getMask: function (maskPattern, i, j) {
+            switch (maskPattern) {
+                case QRMaskPattern.PATTERN000:
+                    return (i + j) % 2 == 0;
+                case QRMaskPattern.PATTERN001:
+                    return i % 2 == 0;
+                case QRMaskPattern.PATTERN010:
+                    return j % 3 == 0;
+                case QRMaskPattern.PATTERN011:
+                    return (i + j) % 3 == 0;
+                case QRMaskPattern.PATTERN100:
+                    return (Math.floor(i / 2) + Math.floor(j / 3)) % 2 == 0;
+                case QRMaskPattern.PATTERN101:
+                    return (i * j) % 2 + (i * j) % 3 == 0;
+                case QRMaskPattern.PATTERN110:
+                    return ((i * j) % 2 + (i * j) % 3) % 2 == 0;
+                case QRMaskPattern.PATTERN111:
+                    return ((i * j) % 3 + (i + j) % 2) % 2 == 0;
+                default:
+                    throw new Error("bad maskPattern:" + maskPattern);
+            }
+        },
+        getErrorCorrectPolynomial: function (errorCorrectLength) {
+            var a = new QRPolynomial([1], 0);
+            for (var i = 0; i < errorCorrectLength; i++) {
+                a = a.multiply(new QRPolynomial([1, QRMath.gexp(i)], 0));
+            }
+            return a;
+        },
+        getLengthInBits: function (mode, type) {
+            if (1 <= type && type < 10) {
+                switch (mode) {
+                    case QRMode.MODE_NUMBER: return 10;
+                    case QRMode.MODE_ALPHA_NUM: return 9;
+                    case QRMode.MODE_8BIT_BYTE: return 8;
+                    case QRMode.MODE_KANJI: return 8;
+                    default: throw new Error("mode:" + mode);
+                }
+            } else if (type < 27) {
+                switch (mode) {
+                    case QRMode.MODE_NUMBER: return 12;
+                    case QRMode.MODE_ALPHA_NUM: return 11;
+                    case QRMode.MODE_8BIT_BYTE: return 16;
+                    case QRMode.MODE_KANJI: return 10;
+                    default: throw new Error("mode:" + mode);
+                }
+            } else if (type < 41) {
+                switch (mode) {
+                    case QRMode.MODE_NUMBER: return 14;
+                    case QRMode.MODE_ALPHA_NUM: return 13;
+                    case QRMode.MODE_8BIT_BYTE: return 16;
+                    case QRMode.MODE_KANJI: return 12;
+                    default: throw new Error("mode:" + mode);
+                }
+            } else {
+                throw new Error("type:" + type);
+            }
+        },
+        getLostPoint: function (qrCode) {
+            var moduleCount = qrCode.getModuleCount();
+            var lostPoint = 0;
+            for (var row = 0; row < moduleCount; row++) {
+                for (var col = 0; col < moduleCount; col++) {
+                    var sameCount = 0;
+                    var dark = qrCode.isDark(row, col);
+                    for (var r = -1; r <= 1; r++) {
+                        if (row + r < 0 || moduleCount <= row + r) {
+                            continue;
+                        }
+                        for (var c = -1; c <= 1; c++) {
+                            if (col + c < 0 || moduleCount <= col + c) {
+                                continue;
+                            }
+                            if (r == 0 && c == 0) {
+                                continue;
+                            }
+                            if (dark == qrCode.isDark(row + r, col + c)) {
+                                sameCount++;
+                            }
+                        }
+                    }
+                    if (sameCount > 5) {
+                        lostPoint += (3 + sameCount - 5);
+                    }
+                }
+            }
+            for (var row = 0; row < moduleCount - 1; row++) {
+                for (var col = 0; col < moduleCount - 1; col++) {
+                    var count = 0;
+                    if (qrCode.isDark(row, col)) count++;
+                    if (qrCode.isDark(row + 1, col)) count++;
+                    if (qrCode.isDark(row, col + 1)) count++;
+                    if (qrCode.isDark(row + 1, col + 1)) count++;
+                    if (count == 0 || count == 4) {
+                        lostPoint += 3;
+                    }
+                }
+            }
+            for (var row = 0; row < moduleCount; row++) {
+                for (var col = 0; col < moduleCount - 6; col++) {
+                    if (qrCode.isDark(row, col) && !qrCode.isDark(row, col + 1) && qrCode.isDark(row, col + 2) && qrCode.isDark(row, col + 3) && qrCode.isDark(row, col + 4) && !qrCode.isDark(row, col + 5) && qrCode.isDark(row, col + 6)) {
+                        lostPoint += 40;
+                    }
+                }
+            }
+            for (var col = 0; col < moduleCount; col++) {
+                for (var row = 0; row < moduleCount - 6; row++) {
+                    if (qrCode.isDark(row, col) && !qrCode.isDark(row + 1, col) && qrCode.isDark(row + 2, col) && qrCode.isDark(row + 3, col) && qrCode.isDark(row + 4, col) && !qrCode.isDark(row + 5, col) && qrCode.isDark(row + 6, col)) {
+                        lostPoint += 40;
+                    }
+                }
+            }
+            var darkCount = 0;
+            for (var col = 0; col < moduleCount; col++) {
+                for (var row = 0; row < moduleCount; row++) {
+                    if (qrCode.isDark(row, col)) {
+                        darkCount++;
+                    }
+                }
+            }
+            var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+            lostPoint += ratio * 10;
+            return lostPoint;
+        }
+    };
+    var QRMath = {
+        glog: function (n) {
+            if (n < 1) {
+                throw new Error("glog(" + n + ")");
+            }
+            return QRMath.LOG_TABLE[n];
+        },
+        gexp: function (n) {
+            while (n < 0) {
+                n += 255;
+            }
+            while (n >= 256) {
+                n -= 255;
+            }
+            return QRMath.EXP_TABLE[n];
+        },
+        EXP_TABLE: new Array(256),
+        LOG_TABLE: new Array(256)
+    };
+    for (var i = 0; i < 8; i++) {
+        QRMath.EXP_TABLE[i] = 1 << i;
     }
-
-    const enc = new TextEncoder();
-    const hostBytes = enc.encode(destHost);
-    const req = new Uint8Array(7 + hostBytes.length);
-    req.set([5, 1, 0, 3, hostBytes.length], 0);
-    req.set(hostBytes, 5);
-    req.set([destPort >> 8, destPort & 0xff], 5 + hostBytes.length);
-    
-    await writer.write(req);
-    
-    res = (await reader.read()).value;
-    if (!res || res[1] !== 0) throw new Error('SOCKS5 Connect Failed');
-
-    writer.releaseLock();
-    reader.releaseLock();
-    return socket;
-}
-
-export { handleVlessWebSocket };
+    for (var i = 8; i < 256; i++) {
+        QRMath.EXP_TABLE[i] = QRMath.EXP_TABLE[i - 4] ^ QRMath.EXP_TABLE[i - 5] ^ QRMath.EXP_TABLE[i - 6] ^ QRMath.EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i++) {
+        QRMath.LOG_TABLE[QRMath.EXP_TABLE[i]] = i;
+    }
+    function QRPolynomial(num, shift) {
+        if (num.length == undefined) {
+            throw new Error(num.length + "/" + shift);
+        }
+        var offset = 0;
+        while (offset < num.length && num[offset] == 0) {
+            offset++;
+        }
+        this.num = new Array(num.length - offset + shift);
+        for (var i = 0; i < num.length - offset; i++) {
+            this.num[i] = num[i + offset];
+        }
+    }
+    QRPolynomial.prototype = {
+        get: function (index) {
+            return this.num[index];
+        },
+        getLength: function () {
+            return this.num.length;
+        },
+        multiply: function (e) {
+            var num = new Array(this.getLength() + e.getLength() - 1);
+            for (var i = 0; i < this.getLength(); i++) {
+                for (var j = 0; j < e.getLength(); j++) {
+                    num[i + j] ^= QRMath.gexp(QRMath.glog(this.get(i)) + QRMath.glog(e.get(j)));
+                }
+            }
+            return new QRPolynomial(num, 0);
+        },
+        mod: function (e) {
+            if (this.getLength() - e.getLength() < 0) {
+                return this;
+            }
+            var ratio = QRMath.glog(this.get(0)) - QRMath.glog(e.get(0));
+            var num = new Array(this.getLength());
+            for (vari = 0; i < this.getLength(); i++) {
+                num[i] = this.get(i);
+            }
+            for (var i = 0; i < e.getLength(); i++) {
+                num[i] ^= QRMath.gexp(QRMath.glog(e.get(i)) + ratio);
+            }
+            return new QRPolynomial(num, 0).mod(e);
+        }
+    };
+    function RSBlock(totalCount, dataCount) {
+        this.totalCount = totalCount;
+        this.dataCount = dataCount;
+    }
+    RSBlock.RS_BLOCK_TABLE = [
+        [1, 26, 19],
+        [1, 26, 16],
+        [1, 26, 13],
+        [1, 26, 9],
+        [1, 44, 34],
+        [1, 44, 28],
+        [1, 44, 22],
+        [1, 44, 16],
+        [1, 70, 55],
+        [1, 70, 44],
+        [2, 35, 17],
+        [2, 35, 13],
+        [1, 100, 80],
+        [2, 50, 32],
+        [2, 50, 24],
+        [4, 25, 9],
+        [1, 134, 108],
+        [2, 67, 43],
+        [2, 33, 15, 2, 34, 16],
+        [2, 33, 11, 2, 34, 12],
+        [2, 86, 68],
+        [4, 43, 27],
+        [4, 43, 19],
+        [4, 43, 15],
+        [2, 98, 78],
+        [4, 49, 31],
+        [2, 32, 14, 4, 33, 15],
+        [4, 39, 13, 1, 40, 14],
+        [2, 121, 97],
+        [2, 60, 38, 2, 61, 39],
+        [4, 40, 18, 2, 41, 19],
+        [4, 40, 14, 2, 41, 15],
+        [2, 146, 116],
+        [3, 58, 36, 2, 59, 37],
+        [4, 36, 16, 4, 37, 17],
+        [4, 36, 12, 4, 37, 13],
+        [2, 86, 68, 2, 87, 69],
+        [4, 69, 43, 1, 70, 44],
+        [6, 43, 19, 2, 44, 20],
+        [6, 43, 15, 2, 44, 16],
+        [4, 101, 81],
+        [1, 80, 50, 4, 81, 51],
+        [4, 50, 22, 4, 51, 23],
+        [3, 36, 12, 8, 37, 13],
+        [2, 116, 92, 2, 117, 93],
+        [6, 58, 36, 2, 59, 37],
+        [4, 46, 20, 6, 47, 21],
+        [7, 42, 14, 4, 43, 15],
+        [4, 133, 107],
+        [8, 59, 37, 1, 60, 38],
+        [8, 44, 20, 4, 45, 21],
+        [12, 33, 11, 4, 34, 12],
+        [3, 145, 115, 1, 146, 116],
+        [4, 64, 40, 5, 65, 41],
+        [11, 36, 16, 5, 37, 17],
+        [11, 36, 12, 5, 37, 13],
+        [5, 109, 87, 1, 110, 88],
+        [5, 65, 41, 5, 66, 42],
+        [5, 54, 24, 7, 55, 25],
+        [11, 36, 12],
+        [5, 122, 98, 1, 123, 99],
+        [7, 73, 45, 3, 74, 46],
+        [15, 43, 19, 2, 44, 20],
+        [3, 45, 15, 13, 46, 16],
+        [1, 135, 107, 5, 136, 108],
+        [10, 74, 46, 1, 75, 47],
+        [1, 50, 22, 15, 51, 23],
+        [2, 42, 14, 17, 43, 15],
+        [5, 150, 120, 1, 151, 121],
+        [9, 69, 43, 4, 70, 44],
+        [17, 50, 22, 1, 51, 23],
+        [2, 42, 14, 19, 43, 15],
+        [3, 141, 113, 4, 142, 114],
+        [3, 70, 44, 11, 71, 45],
+        [17, 47, 21, 4, 48, 22],
+        [9, 39, 13, 16, 40, 14],
+        [3, 135, 107, 5, 136, 108],
+        [3, 67, 41, 13, 68, 42],
+        [15, 54, 24, 5, 55, 25],
+        [15, 43, 15, 10, 44, 16],
+        [4, 144, 116, 4, 145, 117],
+        [17, 68, 42],
+        [17, 50, 22, 6, 51, 23],
+        [19, 46, 16, 6, 47, 17],
+        [2, 139, 111, 7, 140, 112],
+        [17, 74, 46],
+        [7, 54, 24, 16, 55, 25],
+        [34, 37, 13],
+        [4, 151, 121, 5, 152, 122],
+        [4, 75, 47, 14, 76, 48],
+        [11, 54, 24, 14, 55, 25],
+        [16, 45, 15, 14, 46, 16],
+        [6, 147, 117, 4, 148, 118],
+        [6, 73, 45, 14, 74, 46],
+        [11, 54, 24, 16, 55, 25],
+        [30, 46, 16, 2, 47, 17],
+        [8, 132, 106, 4, 133, 107],
+        [8, 75, 47, 13, 76, 48],
+        [7, 54, 24, 22, 55, 25],
+        [22, 45, 15, 13, 46, 16],
+        [10, 142, 114, 2, 143, 115],
+        [19, 74, 46, 4, 75, 47],
+        [28, 50, 22, 6, 51, 23],
+        [33, 46, 16, 4, 47, 17],
+        [8, 152, 122, 4, 153, 123],
+        [22, 73, 45, 3, 74, 46],
+        [8, 53, 23, 26, 54, 24],
+        [12, 45, 15, 28, 46, 16],
+        [3, 147, 117, 10, 148, 118],
+        [3, 73, 45, 23, 74, 46],
+        [4, 54, 24, 31, 55, 25],
+        [11, 45, 15, 31, 46, 16],
+        [7, 146, 116, 7, 147, 117],
+        [21, 73, 45, 7, 74, 46],
+        [1, 53, 23, 37, 54, 24],
+        [19, 45, 15, 26, 46, 16],
+        [5, 145, 115, 10, 146, 116],
+        [19, 75, 47, 10, 76, 48],
+        [15, 54, 24, 25, 55, 25],
+        [23, 45, 15, 25, 46, 16],
+        [13, 145, 115, 3, 146, 116],
+        [2, 74, 46, 29, 75, 47],
+        [42, 54, 24, 1, 55, 25],
+        [23, 45, 15, 28, 46, 16],
+        [17, 145, 115],
+        [10, 74, 46, 23, 75, 47],
+        [10, 54, 24, 35, 55, 25],
+        [19, 45, 15, 35, 46, 16],
+        [17, 145, 115, 1, 146, 116],
+        [14, 74, 46, 21, 75, 47],
+        [29, 54, 24, 19, 55, 25],
+        [11, 45, 15, 46, 46, 16],
+        [13, 145, 115, 6, 146, 116],
+        [14, 74, 46, 23, 75, 47],
+        [44, 54, 24, 7, 55, 25],
+        [59, 46, 16, 1, 47, 17],
+        [12, 151, 121, 7, 152, 122],
+        [12, 75, 47, 26, 76, 48],
+        [39, 54, 24, 14, 55, 25],
+        [22, 45, 15, 41, 46, 16],
+        [6, 151, 121, 14, 152, 122],
+        [6, 75, 47, 34, 76, 48],
+        [46, 54, 24, 10, 55, 25],
+        [2, 45, 15, 64, 46, 16],
+        [17, 152, 122, 4, 153, 123],
+        [29, 74, 46, 14, 75, 47],
+        [49, 54, 24, 10, 55, 25],
+        [24, 45, 15, 46, 46, 16],
+        [4, 152, 122, 18, 153, 123],
+        [13, 74, 46, 32, 75, 47],
+        [48, 54, 24, 14, 55, 25],
+        [42, 45, 15, 32, 46, 16],
+        [20, 147, 117, 4, 148, 118],
+        [40, 75, 47, 7, 76, 48],
+        [43, 54, 24, 22, 55, 25],
+        [10, 45, 15, 67, 46, 16],
+        [19, 148, 118, 6, 149, 119],
+        [18, 75, 47, 31, 76, 48],
+        [34, 54, 24, 34, 55, 25],
+        [20, 45, 15, 61, 46, 16]
+    ];
+    RSBlock.getRSBlocks = function (typeNumber, errorCorrectLevel) {
+        var rsBlock = RSBlock.getRsBlockTable(typeNumber, errorCorrectLevel);
+        if (rsBlock == undefined) {
+            throw new Error("bad rs block @ typeNumber:" + typeNumber + "/errorCorrectLevel:" + errorCorrectLevel);
+        }
+        var length = rsBlock.length / 3;
+        var list = [];
+        for (var i = 0; i < length; i++) {
+            var count = rsBlock[i * 3 + 0];
+            var totalCount = rsBlock[i * 3 + 1];
+            var dataCount = rsBlock[i * 3 + 2];
+            for (var j = 0; j < count; j++) {
+                list.push(new RSBlock(totalCount, dataCount));
+            }
+        }
+        return list;
+    };
+    RSBlock.getRsBlockTable = function (typeNumber, errorCorrectLevel) {
+        switch (errorCorrectLevel) {
+            case QRErrorCorrectLevel.L: return RSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+            case QRErrorCorrectLevel.M: return RSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+            case QRErrorCorrectLevel.Q: return RSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+            case QRErrorCorrectLevel.H: return RSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+            default: return undefined;
+        }
+    };
+    function QRBitBuffer() {
+        this.buffer = [];
+        this.length = 0;
+    }
+    QRBitBuffer.prototype = {
+        get: function (index) {
+            var bufIndex = Math.floor(index / 8);
+            return ((this.buffer[bufIndex] >>> (7 - index % 8)) & 1) == 1;
+        },
+        put: function (num, length) {
+            for (var i = 0; i < length; i++) {
+                this.putBit(((num >>> (length - i - 1)) & 1) == 1);
+            }
+        },
+        getLengthInBits: function () {
+            return this.length;
+        },
+        putBit: function (bit) {
+            var bufIndex = Math.floor(this.length / 8);
+            if (this.buffer.length <= bufIndex) {
+                this.buffer.push(0);
+            }
+            if (bit) {
+                this.buffer[bufIndex] |= (0x80 >>> (this.length % 8));
+            }
+            this.length++;
+        }
+    };
+    window.QRCode = QRCodeModel;
+})();
+`;
 
 // ============================================================================
-// 🔗 SUBSCRIPTION GENERATOR
+// 2. CONFIGURATION & CONSTANTS
 // ============================================================================
-
-function generateRandomPath(len) {
-    let s = '';
-    const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    for(let i=0;i<len;i++) s += c.charAt(Math.floor(Math.random()*c.length));
-    return '/' + s;
-}
 
 /**
- * Generates a VLESS Link URI.
- * Optimized for compatibility with V2RayNG, Streisand, Shadowrocket.
+ * Configuration object merged from environment and default values.
+ * Includes Scamalytics API, Proxy IP, and Worker sub-domain logic.
  */
-function createVlessLink(uuid, host, ip, port, idx, type) {
-    const path = generateRandomPath(8); // Random path for obscurity
-    const sni = host; 
-    const alias = `Quantum-${type}-${idx}`; // Clean naming
+const Config = {
+    uuid: '99849511-9257-4180-9280-492759247599', // Default admin UUID
+    proxyIP: 'cdn.xn--b6gac.eu.org',
+    remoteDNS: 'https://1.1.1.1/dns-query',
+    sub: 'worker-vless.kv.k00.eu.org',
+    PROV: 'KV',
+    API: 'https://scamalytics.com/ip/', // Anti-fraud check integration
     
-    // Using standard VLESS WebSocket TLS format
-    // vless://uuid@ip:port?encryption=none&security=tls&sni=host&fp=chrome&type=ws&host=host&path=path#alias
-    
-    const params = new URLSearchParams();
-    params.set('encryption', 'none');
-    params.set('security', 'tls');
-    params.set('sni', sni);
-    params.set('fp', 'chrome'); // Fingerprint
-    params.set('type', 'ws');
-    params.set('host', host);
-    params.set('path', path);
-    
-    return `vless://${uuid}@${ip}:${port}?${params.toString()}#${encodeURIComponent(alias)}`;
-}
+    // DB Config
+    DB: null, // Will be injected from env
+};
 
 /**
- * Generates Base64 Subscription Response.
- * Always returns a valid response to prevent "Info Scan Result Empty".
+ * Helper to safely encode strings to Base64 (supporting UTF-8)
+ * FIX: 'Info Scan' issue where some characters caused failed decoding.
  */
-async function handleSubscription(request, env, core, uuid, host) {
-    // 1. Validate User
-    const user = await getUserData(env, uuid);
-    if (!user) {
-        // Return 403 but with a text body so clients see an error
-        return new Response('Invalid User UUID', { status: 403 });
-    }
-
-    // 2. Fetch Healthy IPs (Smart Routing)
-    let proxies = [];
-    if (env.DB) {
-        try {
-            const { results } = await env.DB.prepare(
-                "SELECT ip_port FROM proxy_health WHERE is_healthy=1 ORDER BY latency_ms ASC LIMIT 10"
-            ).all();
-            proxies = results.map(r => r.ip_port);
-        } catch(e) { console.error(e); }
-    }
-    
-    // 3. Fallback IPs (Critical to prevent empty list)
-    if (proxies.length === 0) {
-        proxies = Config.proxyIPs;
-    }
-
-    // 4. Generate Links
-    const links = [];
-    
-    // A. Direct Domain (Reliable)
-    links.push(createVlessLink(uuid, host, host, 443, 1, 'Direct'));
-    
-    // B. CDN/Proxy IPs (Fast)
-    proxies.forEach((p, i) => {
-        const [ip, port] = p.split(':');
-        links.push(createVlessLink(uuid, host, ip, port || 443, i+2, 'CDN'));
-    });
-
-    // 5. Encode & Return
-    // Standard Base64 encode the list of links
-    const responseBody = safeBase64Encode(links.join('\n'));
-
-    return new Response(responseBody, {
-        headers: { 
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-store", // Don't cache configs
-            "Profile-Update-Interval": "12", // Suggest update every 12h
-            "Subscription-Userinfo": `upload=0; download=${user.traffic_used}; total=${user.traffic_limit || 0}; expire=${new Date(user.expiration_date).getTime() / 1000}`
-        }
-    });
+function safeBase64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+        function(match, p1) {
+            return String.fromCharCode('0x' + p1);
+        }));
 }
 
 // ============================================================================
-// 🔮 ADMIN PANEL HTML (HOLOGRAPHIC QUANTUM THEME)
+// 3. DATABASE UTILITIES (D1)
 // ============================================================================
 
-const adminPanelHTML = `<!DOCTYPE html>
+/**
+ * Initialize the D1 database if it doesn't exist.
+ * Creates tables for users and usage tracking.
+ */
+async function initializeDatabase(db) {
+    try {
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid TEXT UNIQUE NOT NULL,
+                name TEXT,
+                email TEXT,
+                telegram_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid TEXT NOT NULL,
+                upload INTEGER DEFAULT 0,
+                download INTEGER DEFAULT 0,
+                last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(uuid) REFERENCES users(uuid)
+            );
+        `);
+        // Ensure admin UUID exists
+        const adminCheck = await db.prepare("SELECT uuid FROM users WHERE uuid = ?").bind(Config.uuid).first();
+        if (!adminCheck) {
+            await db.prepare("INSERT INTO users (uuid, name) VALUES (?, ?)").bind(Config.uuid, 'Admin').run();
+        }
+    } catch (e) {
+        console.error("DB Init Error:", e);
+    }
+}
+
+async function verifyUser(db, uuid) {
+    if (!uuid) return false;
+    // Allow static admin UUID even if DB fails
+    if (uuid === Config.uuid) return true;
+    
+    try {
+        const user = await db.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
+        return !!user;
+    } catch (e) {
+        // Fallback for non-D1 environments or critical errors
+        return uuid === Config.uuid;
+    }
+}
+
+async function addVLESSKey(db, uuid, name) {
+    try {
+        await db.prepare("INSERT INTO users (uuid, name) VALUES (?, ?)").bind(uuid, name).run();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function deleteVLESSKey(db, uuid) {
+    if (uuid === Config.uuid) return false; // Cannot delete main admin
+    try {
+        await db.prepare("DELETE FROM users WHERE uuid = ?").bind(uuid).run();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function getVLESSKeys(db) {
+    try {
+        const result = await db.prepare("SELECT users.uuid, users.name, usage.upload, usage.download, usage.last_active FROM users LEFT JOIN usage ON users.uuid = usage.uuid").all();
+        return result.results || [];
+    } catch (e) {
+        return [{ uuid: Config.uuid, name: 'Admin (Static)', upload: 0, download: 0 }];
+    }
+}
+
+async function updateUsage(db, uuid, up, down) {
+    if (!db || !uuid) return;
+    try {
+        // Upsert usage
+        const exists = await db.prepare("SELECT id FROM usage WHERE uuid = ?").bind(uuid).first();
+        if (exists) {
+            await db.prepare("UPDATE usage SET upload = upload + ?, download = download + ?, last_active = CURRENT_TIMESTAMP WHERE uuid = ?")
+                .bind(up, down, uuid).run();
+        } else {
+            await db.prepare("INSERT INTO usage (uuid, upload, download) VALUES (?, ?, ?)")
+                .bind(uuid, up, down).run();
+        }
+    } catch (e) {
+        console.error("Usage Update Error:", e);
+    }
+}
+
+// ============================================================================
+// 4. HTML & CSS TEMPLATES (Glassmorphism)
+// ============================================================================
+
+const ADMIN_HTML = `
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Overseer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Quantum VLESS Panel</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap');
-
         :root {
-            --bg-deep: #030305;
-            --neon-cyan: #00f3ff;
-            --neon-pink: #ff00ff;
-            --neon-green: #00ff9d;
-            --glass: rgba(10, 10, 20, 0.6);
-            --border: rgba(0, 243, 255, 0.2);
-            --text-main: #e0e0ff;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --text-color: #ffffff;
+            --accent-color: #00f2ff;
         }
-
-        * { box-sizing: border-box; }
-        
         body {
-            margin: 0; background: var(--bg-deep); color: var(--text-main);
-            font-family: 'Rajdhani', sans-serif; overflow-x: hidden;
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(0, 243, 255, 0.08), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(255, 0, 255, 0.08), transparent 25%);
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-color);
+            min-height: 100vh;
         }
-
-        /* Neural Network Canvas Background */
-        #neural-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1; opacity: 0.3;
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
-
-        .container { max-width: 1400px; margin: 0 auto; padding: 40px 20px; }
-
-        /* Holographic Header */
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border); padding-bottom: 20px;
-            margin-bottom: 40px; position: relative;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        
-        header::after {
-            content:''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 1px;
-            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-            box-shadow: 0 0 10px var(--neon-cyan);
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
         }
-
-        h1 {
-            font-size: 3rem; text-transform: uppercase; margin: 0;
-            background: linear-gradient(180deg, #fff, #aaa); -webkit-background-clip: text; color: transparent;
-            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        h1, h2, h3 {
+            color: var(--accent-color);
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
         }
-
-        .sys-badge {
-            background: rgba(0, 255, 157, 0.1); border: 1px solid var(--neon-green);
-            color: var(--neon-green); padding: 5px 15px; border-radius: 4px;
-            font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px;
-            box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+        button {
+            background: rgba(0, 242, 255, 0.2);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
         }
-
-        /* Stats Modules */
-        .stats-deck {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px; margin-bottom: 40px;
+        button:hover {
+            background: var(--accent-color);
+            color: #000;
+            box-shadow: 0 0 15px var(--accent-color);
         }
-
-        .module {
-            background: var(--glass); backdrop-filter: blur(12px);
-            border: 1px solid var(--border); padding: 25px;
-            position: relative; overflow: hidden;
-            clip-path: polygon(
-                20px 0, 100% 0, 100% calc(100% - 20px), 
-                calc(100% - 20px) 100%, 0 100%, 0 20px
-            );
-            transition: 0.3s;
+        input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-right: 10px;
         }
-
-        .module:hover { border-color: var(--neon-cyan); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
-
-        .module-title { font-size: 0.8rem; color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
-        .module-value { font-size: 2.5rem; font-weight: 700; color: #fff; text-shadow: 0 0 15px rgba(255,255,255,0.3); }
-        .module-sub { font-size: 0.9rem; color: #888; margin-top: 5px; }
-
-        /* Cyberpunk Table */
-        .data-grid {
-            background: var(--glass); border: 1px solid var(--border);
-            border-radius: 4px; overflow-x: auto;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
         }
-
-        table { width: 100%; border-collapse: collapse; }
-        th { 
-            text-align: left; padding: 18px; color: var(--neon-cyan); 
-            text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
-            border-bottom: 1px solid var(--border);
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--glass-border);
         }
-        td { 
-            padding: 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); 
-            font-size: 1rem; color: #ccc;
+        th {
+            color: var(--accent-color);
         }
-        tr:hover td { background: rgba(0, 243, 255, 0.05); color: #fff; }
-
-        .uuid-tag { font-family: monospace; color: var(--neon-pink); }
-        
-        .status-dot {
-            height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px;
-            box-shadow: 0 0 8px currentColor;
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
         }
-        .status-active { color: var(--neon-green); }
-        .status-expired { color: #ff0055; }
-
-        /* Controls */
-        .control-bar { display: flex; gap: 15px; margin-bottom: 25px; justify-content: flex-end; }
-        
-        .cyber-input {
-            background: rgba(0,0,0,0.5); border: 1px solid #444; color: #fff;
-            padding: 12px 20px; font-family: 'Rajdhani'; font-size: 1rem; width: 300px;
-            transition: 0.3s;
+        .hidden { display: none; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 255, 128, 0.2);
+            border: 1px solid #00ff80;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            backdrop-filter: blur(4px);
         }
-        .cyber-input:focus { border-color: var(--neon-cyan); outline: none; box-shadow: 0 0 15px rgba(0,243,255,0.2); }
-
-        .cyber-btn {
-            background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan);
-            padding: 12px 30px; font-family: 'Rajdhani'; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 2px; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden;
-        }
-        
-        .cyber-btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px var(--neon-cyan); }
-        .cyber-btn-danger { border-color: #ff0055; color: #ff0055; }
-        .cyber-btn-danger:hover { background: #ff0055; color: #fff; box-shadow: 0 0 20px #ff0055; }
-
-        /* Modal */
-        .modal-wrap {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
-            z-index: 1000; opacity: 0; pointer-events: none; transition: 0.4s;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .modal-wrap.active { opacity: 1; pointer-events: auto; }
-
-        .cyber-modal {
-            background: #0a0a12; border: 1px solid var(--neon-cyan);
-            width: 500px; max-width: 90%; padding: 40px;
-            box-shadow: 0 0 50px rgba(0, 243, 255, 0.2);
-            position: relative;
-            clip-path: polygon(
-                30px 0, 100% 0, 100% calc(100% - 30px), 
-                calc(100% - 30px) 100%, 0 100%, 0 30px
-            );
-        }
-
-        .modal-h { font-size: 1.5rem; color: var(--neon-cyan); margin-bottom: 30px; text-transform: uppercase; }
-        .close-mod { position: absolute; top: 20px; right: 20px; color: #666; cursor: pointer; font-size: 1.5rem; }
-        .close-mod:hover { color: #fff; }
-
-        .qr-box { background: #fff; padding: 15px; display: inline-block; margin-bottom: 20px; }
-        .code-block { background: #111; border: 1px solid #333; padding: 15px; color: #aaa; font-family: monospace; word-break: break-all; font-size: 0.8rem; margin-bottom: 20px; max-height: 100px; overflow-y: auto; }
-
-        #toast { position: fixed; bottom: 30px; right: 30px; background: #000; border: 1px solid var(--neon-green); color: var(--neon-green); padding: 15px 30px; font-weight: 700; transform: translateY(100px); transition: 0.3s; z-index: 2000; box-shadow: 0 0 20px rgba(0,255,157,0.2); }
-        #toast.show { transform: translateY(0); }
-
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .stats-deck { grid-template-columns: 1fr; }
-            .control-bar { flex-direction: column; }
-            .cyber-input { width: 100%; }
+            .container { padding: 10px; }
+            th, td { font-size: 14px; padding: 8px; }
+            .action-btn { display: block; width: 100%; margin: 5px 0; }
         }
     </style>
 </head>
 <body>
-    <canvas id="neural-canvas"></canvas>
-    
+`;
     <div class="container">
-        <header>
-            <div>
-                <h1>Quantum Overseer</h1>
-                <div style="color: #666; letter-spacing: 3px; font-size: 0.8rem; margin-top: 5px;">EDGE SINGULARITY V3.0</div>
-            </div>
-            <div style="text-align: right;">
-                <span class="sys-badge">SYSTEM OPTIMAL</span>
-                <button onclick="logout()" style="background:none; border:none; color:#666; margin-left: 20px; cursor:pointer; font-family: 'Rajdhani'; text-transform: uppercase;">Disconnect</button>
-            </div>
-        </header>
-
-        <div class="stats-deck">
-            <div class="module">
-                <div class="module-title">Active Nodes (Users)</div>
-                <div class="module-value" id="total-users">--</div>
-                <div class="module-sub" style="color: var(--neon-green);">Alive Entities</div>
-            </div>
-            <div class="module">
-                <div class="module-title">Throughput (Total)</div>
-                <div class="module-value" id="total-traffic">--</div>
-                <div class="module-sub" style="color: var(--neon-pink);">Data Flux</div>
-            </div>
-            <div class="module">
-                <div class="module-title">Entropy Level</div>
-                <div class="module-value" style="color: var(--neon-cyan);">0.04</div>
-                <div class="module-sub">System Stable</div>
-            </div>
-        </div>
-
-        <div class="control-bar">
-            <input type="text" id="search" class="cyber-input" placeholder="SEARCH ENTITY ID..." onkeyup="filterUsers()">
-            <button class="cyber-btn" onclick="openCreateModal()">INITIALIZE USER</button>
-        </div>
-
-        <div class="data-grid">
-            <table id="users-table">
-                <thead>
-                    <tr>
-                        <th>Entity ID</th>
-                        <th>Alias</th>
-                        <th>Time Horizon</th>
-                        <th>Flux Usage</th>
-                        <th>State</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="users-list"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Create Modal -->
-    <div class="modal-wrap" id="createModal">
-        <div class="cyber-modal">
-            <span class="close-mod" onclick="closeModal('createModal')">&times;</span>
-            <div class="modal-h">Initialize New Entity</div>
-            <form onsubmit="createUser(event)">
-                <div style="margin-bottom: 20px;">
-                    <label style="display:block; color:#888; margin-bottom:10px;">UUID (Auto if empty)</label>
-                    <input type="text" id="new-uuid" class="cyber-input" style="width:100%">
+        <div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 24px;">🔮</div>
+                <div>
+                    <h2 style="margin: 0;">Quantum VLESS</h2>
+                    <small style="opacity: 0.7;">Cloudflare Edge Node</small>
                 </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display:block; color:#888; margin-bottom:10px;">Alias / Note</label>
-                    <input type="text" id="new-note" class="cyber-input" style="width:100%">
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-                    <div>
-                        <label style="display:block; color:#888; margin-bottom:10px;">Days</label>
-                        <input type="number" id="new-days" class="cyber-input" style="width:100%" value="30">
-                    </div>
-                    <div>
-                        <label style="display:block; color:#888; margin-bottom:10px;">Limit (GB)</label>
-                        <input type="number" id="new-limit" class="cyber-input" style="width:100%" value="0">
-                    </div>
-                </div>
-                <button type="submit" class="cyber-btn" style="width:100%">EXECUTE</button>
-            </form>
+            </div>
+            <div id="stats-bar" style="display: flex; gap: 15px; align-items: center;">
+                <span id="sys-status" style="color: #00ff80; border: 1px solid #00ff80; padding: 2px 8px; border-radius: 4px; font-size: 12px;">Operational</span>
+            </div>
         </div>
-    </div>
 
-    <!-- View Modal -->
-    <div class="modal-wrap" id="viewModal">
-        <div class="cyber-modal" style="text-align: center;">
-            <span class="close-mod" onclick="closeModal('viewModal')">&times;</span>
-            <div class="modal-h">Entity Configuration</div>
-            
-            <div class="qr-box">
-                <div id="qr-code"></div>
+        <div class="glass-panel">
+            <h3>User Management</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <input type="text" id="newUserInfo" placeholder="User Name / ID" style="flex: 1; min-width: 200px;">
+                <button onclick="addUser()">✨ Create User</button>
             </div>
             
-            <div class="code-block" id="sub-link-display"></div>
-            
-            <div style="display:flex; gap:10px; justify-content:center;">
-                <button class="cyber-btn" onclick="copyLink()">COPY LINK</button>
-                <button class="cyber-btn" onclick="downloadQR()">SAVE QR</button>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Name</th>
+                            <th>UUID</th>
+                            <th>Data (Up/Down)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <tr><td colspan="5" style="text-align: center;">Loading Quantum Data...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
 
-    <div id="toast">COMMAND EXECUTED</div>
+        <!-- QR Modal -->
+        <div id="qrModal" class="glass-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; border: 1px solid var(--accent-color); background: rgba(0,0,0,0.9);">
+            <h3 style="margin-top: 0;">Connection QR</h3>
+            <div id="qrcode" style="background: white; padding: 10px; border-radius: 4px; margin: 0 auto; width: 200px;"></div>
+            <br>
+            <textarea id="qrText" style="width: 100%; height: 60px; font-size: 10px; color: #aaa; background: #111; border: 1px solid #333;" readonly></textarea>
+            <br><br>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="copyLink()">Copy Link</button>
+                <button onclick="closeQR()" style="border-color: #ff4444; color: #ff4444;">Close</button>
+            </div>
+        </div>
+        
+        <div id="toast" class="toast">Action Successful</div>
+    </div>
 
     <script>
-        const API = '/api';
-        let currentUUID = '';
+        // Inject Embedded QR Library Code
+        ${QR_LIB}
 
-        // --- Visuals: Neural Canvas ---
-        const canvas = document.getElementById('neural-canvas');
-        const ctx = canvas.getContext('2d');
-        let width, height, nodes = [];
-
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
+        const API_BASE = window.location.pathname.replace('/panel', '/api');
+        
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
         }
-        window.onresize = resize;
-        resize();
-
-        class Node {
-            constructor() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-            }
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                if (this.x < 0 || this.x > width) this.vx *= -1;
-                if (this.y < 0 || this.y > height) this.vy *= -1;
-            }
-        }
-
-        for(let i=0; i<50; i++) nodes.push(new Node());
-
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = '#00f3ff';
-            ctx.strokeStyle = 'rgba(0, 243, 255, 0.1)';
-            
-            for(let i=0; i<nodes.length; i++) {
-                let n = nodes[i];
-                n.update();
-                ctx.beginPath(); ctx.arc(n.x, n.y, 2, 0, Math.PI*2); ctx.fill();
-                for(let j=i+1; j<nodes.length; j++) {
-                    let n2 = nodes[j];
-                    let d = Math.hypot(n.x-n2.x, n.y-n2.y);
-                    if(d < 150) {
-                        ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(n2.x, n2.y); ctx.stroke();
-                    }
-                }
-            }
-            requestAnimationFrame(animate);
-        }
-        animate();
-
-        // --- Logic ---
 
         async function fetchUsers() {
             try {
-                const res = await fetch(API + '/users');
+                // If API_KEY is required in headers, add here. 
+                // For this VLESS panel, we usually rely on the UUID path or a session, 
+                // but for simplicity, we assume the Admin Panel is protected by the path param.
+                const urlParams = new URLSearchParams(window.location.search);
+                const authKey = urlParams.get('key');
+                
+                const res = await fetch(API_BASE + '/users' + (authKey ? '?key=' + authKey : ''));
+                if(!res.ok) throw new Error('Auth Failed');
+                
                 const users = await res.json();
                 renderTable(users);
-                updateStats(users);
-            } catch(e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('userTableBody').innerHTML = '<tr><td colspan="5" style="color: #ff4444;">Failed to load data. Auth Key required?</td></tr>';
+            }
         }
 
         function renderTable(users) {
-            const list = document.getElementById('users-list');
-            list.innerHTML = '';
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            
             users.forEach(u => {
-                const isExp = new Date(u.expiration_date) < new Date();
                 const tr = document.createElement('tr');
+                // Check active status (within last 5 mins)
+                const lastActive = u.last_active ? new Date(u.last_active).getTime() : 0;
+                const isOnline = (Date.now() - lastActive) < 300000 && u.download > 0;
+                
                 tr.innerHTML = \`
-                    <td class="uuid-tag">\${u.uuid.substring(0,8)}...</td>
-                    <td style="color:#fff">\${u.notes || 'Unknown'}</td>
-                    <td>\${u.expiration_date}</td>
-                    <td>\${formatBytes(u.traffic_used)}</td>
-                    <td><span class="status-dot \${isExp ? 'status-expired' : 'status-active'}"></span> \${isExp ? 'OFFLINE' : 'ACTIVE'}</td>
+                    <td><span style="color: \${isOnline ? '#00ff80' : '#555'}">●</span></td>
+                    <td>\${u.name || 'Unknown'}</td>
+                    <td style="font-family: monospace; font-size: 12px; opacity: 0.8;">\${u.uuid}</td>
+                    <td>\${formatBytes(u.upload)} / \${formatBytes(u.download)}</td>
                     <td>
-                        <button class="cyber-btn" style="padding: 5px 15px; font-size: 0.8rem;" onclick="openView('\${u.uuid}')">CONFIG</button>
-                        <button class="cyber-btn cyber-btn-danger" style="padding: 5px 15px; font-size: 0.8rem;" onclick="delUser('\${u.uuid}')">PURGE</button>
+                        <button onclick="showQR('\${u.uuid}', '\${u.name}')" style="padding: 5px 10px;">Connect</button>
+                        \${u.name !== 'Admin' ? \`<button onclick="deleteUser('\${u.uuid}')" style="background: rgba(255, 68, 68, 0.1); border-color: #ff4444; color: #ff4444; padding: 5px 10px;">Del</button>\` : ''}
                     </td>
                 \`;
-                list.appendChild(tr);
+                tbody.appendChild(tr);
             });
         }
 
-        function updateStats(users) {
-            document.getElementById('total-users').innerText = users.length;
-            let total = 0;
-            users.forEach(u => total += (u.traffic_used || 0));
-            document.getElementById('total-traffic').innerText = formatBytes(total);
-        }
+        async function addUser() {
+            const name = document.getElementById('newUserInfo').value;
+            if (!name) return alert('Enter a name');
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const authKey = urlParams.get('key');
 
-        async function createUser(e) {
-            e.preventDefault();
-            const uuid = document.getElementById('new-uuid').value;
-            const notes = document.getElementById('new-note').value;
-            const days = document.getElementById('new-days').value;
-            const limit = document.getElementById('new-limit').value;
-
-            await fetch(API + '/users', {
+            await fetch(API_BASE + '/user' + (authKey ? '?key=' + authKey : ''), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ uuid, notes, days, limit })
+                body: JSON.stringify({ name })
             });
-            closeModal('createModal');
-            showToast('ENTITY INITIALIZED');
+            document.getElementById('newUserInfo').value = '';
+            showToast('User Created');
             fetchUsers();
         }
 
-        async function delUser(uuid) {
-            if(!confirm('Purge entity from system?')) return;
-            await fetch(API + '/users/' + uuid, { method: 'DELETE' });
-            showToast('ENTITY PURGED');
+        async function deleteUser(uuid) {
+            if (!confirm('Confirm deletion?')) return;
+            const urlParams = new URLSearchParams(window.location.search);
+            const authKey = urlParams.get('key');
+            
+            await fetch(API_BASE + '/user?uuid=' + uuid + (authKey ? '&key=' + authKey : ''), { method: 'DELETE' });
+            showToast('User Deleted');
             fetchUsers();
         }
 
-        // Modals
-        function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
-        async function openView(uuid) { 
-            currentUUID = uuid;
-            document.getElementById('viewModal').classList.add('active'); 
-            
-            const link = window.location.origin + '/xray/' + uuid;
-            document.getElementById('sub-link-display').innerText = link;
-            document.getElementById('qr-code').innerHTML = '';
-            
-            // Generate QR from actual config
-            try {
-                const res = await fetch('/xray/' + uuid);
-                const b64 = await res.text();
-                const text = atob(b64).split('\\n')[0];
-                new QRCode(document.getElementById("qr-code"), { text: text, width: 200, height: 200 });
-            } catch(e) {
-                new QRCode(document.getElementById("qr-code"), { text: link, width: 200, height: 200 });
-            }
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return \`\${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} \${sizes[i]}\`;
         }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showQR(uuid, name) {
+            const host = window.location.hostname;
+            // Robust VLESS Link Construction
+            const link = \`vless://\${uuid}@\${host}:443?encryption=none&security=tls&sni=\${host}&fp=random&type=ws&host=\${host}&path=%2F%3Fed%3D2048#\${encodeURIComponent(name || 'QuantumNode')}\`;
+            
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = '';
+            // Generate QR Locally using the embedded library
+            new QRCode(qrDiv, {
+                text: link,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+            
+            document.getElementById('qrText').value = link;
+            document.getElementById('qrModal').style.display = 'block';
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
 
         function copyLink() {
-            navigator.clipboard.writeText(document.getElementById('sub-link-display').innerText);
-            showToast('UPLINK COPIED');
+            const copyText = document.getElementById("qrText");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            showToast("Link Copied!");
         }
 
-        function downloadQR() {
-            const img = document.querySelector('#qr-code img');
-            if(img) {
-                const a = document.createElement('a');
-                a.href = img.src;
-                a.download = 'quantum-key-' + currentUUID + '.png';
-                a.click();
-            }
-        }
-
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        function filterUsers() {
-            const term = document.getElementById('search').value.toLowerCase();
-            const rows = document.querySelectorAll('#users-list tr');
-            rows.forEach(r => r.style.display = r.innerText.toLowerCase().includes(term) ? '' : 'none');
-        }
-
-        function logout() { document.cookie = "auth=; path=/; max-age=0"; location.reload(); }
-
+        // Initial Load
         fetchUsers();
     </script>
 </body>
-</html>`;
+</html>
+`;
 
 // ============================================================================
-// 👤 USER PANEL HTML (QUANTUM THEME)
+// 5. MAIN WORKER ENTRY POINT
 // ============================================================================
-
-const userPanelHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My VLESS Access</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --bg: #0b0b1a;
-            --card: #151525;
-            --primary: #6366f1;
-            --secondary: #8b5cf6;
-            --accent: #06b6d4;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-        }
-        
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0; padding: 20px;
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .bg-glow {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.2), transparent 50%);
-        }
-
-        .dashboard {
-            width: 100%;
-            max-width: 480px;
-            background: rgba(21, 21, 37, 0.8);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 30px;
-            padding: 30px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        header { text-align: center; margin-bottom: 30px; }
-        h1 { margin: 0; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; color: transparent; font-size: 1.8rem; letter-spacing: 1px; }
-        .subtitle { color: var(--text-dim); font-size: 0.9rem; margin-top: 5px; }
-
-        /* Usage Circle */
-        .usage-container {
-            position: relative;
-            width: 200px; height: 200px;
-            margin: 0 auto 30px;
-            border-radius: 50%;
-            background: conic-gradient(var(--primary) 0deg, #1e1e2e 0deg);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
-            transition: background 1s ease-out;
-        }
-
-        .usage-inner {
-            width: 170px; height: 170px;
-            background: var(--bg);
-            border-radius: 50%;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            z-index: 2;
-        }
-
-        .usage-val { font-size: 2rem; font-weight: 800; }
-        .usage-label { color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; }
-
-        /* Stats Grid */
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .info-box {
-            background: rgba(255,255,255,0.03);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-        }
-        
-        .info-title { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 5px; }
-        .info-data { font-weight: bold; font-size: 1.1rem; }
-
-        /* Buttons */
-        .btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 15px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-bottom: 15px;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
-        }
-        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(99, 102, 241, 0.5); }
-
-        .btn-outline {
-            background: transparent;
-            border: 2px solid rgba(255,255,255,0.1);
-            color: var(--text);
-        }
-        .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: rgba(6, 182, 212, 0.1); }
-
-        /* Modal */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 100;
-            display: none; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 25px;
-            text-align: center;
-            color: #000;
-            animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-        #qr-code img { display: block; margin: 0 auto; border-radius: 5px; }
-        
-        .close-btn {
-            margin-top: 20px;
-            padding: 10px 30px;
-            background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        #notification {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
-            background: var(--accent); color: #000;
-            padding: 10px 30px; border-radius: 50px;
-            font-weight: bold; transition: 0.3s;
-            z-index: 200;
-        }
-        #notification.show { transform: translateX(-50%) translateY(0); }
-
-    </style>
-</head>
-<body>
-    <div class="bg-glow"></div>
-    <div id="notification">Notification</div>
-
-    <div class="dashboard">
-        <header>
-            <h1>VLESS Quantum</h1>
-            <div class="subtitle">Secure Connection Dashboard</div>
-        </header>
-
-        <div class="usage-container" id="progress-ring">
-            <div class="usage-inner">
-                <span class="usage-val" id="used">--</span>
-                <span class="usage-label">Used</span>
-            </div>
-        </div>
-
-        <div class="info-grid">
-            <div class="info-box">
-                <div class="info-title">Data Limit</div>
-                <div class="info-data" id="limit">--</div>
-            </div>
-            <div class="info-box">
-                <div class="info-title">Expires In</div>
-                <div class="info-data" id="expiry">--</div>
-            </div>
-        </div>
-
-        <button class="btn btn-primary" onclick="copySubscription()">
-            <i class="fa-solid fa-link"></i> Copy Subscription Link
-        </button>
-        
-        <button class="btn btn-outline" onclick="showQR()">
-            <i class="fa-solid fa-qrcode"></i> Show QR Code
-        </button>
-
-        <div style="text-align:center; margin-top: 15px; color: var(--text-dim); font-size: 0.8rem;">
-            ID: <span id="short-id">...</span>
-        </div>
-    </div>
-
-    <div class="modal" id="qrModal">
-        <div class="modal-content">
-            <h2 style="margin-top:0">Scan to Connect</h2>
-            <div id="qr-code"></div>
-            <p style="color:#666; font-size:0.9rem; margin-top:10px;">Use V2RayNG, Streisand or Shadowrocket</p>
-            <button class="close-btn" onclick="document.getElementById('qrModal').style.display='none'">Close</button>
-        </div>
-    </div>
-
-    <script>
-        // CONFIG INJECTED BY WORKER
-        const CONFIG = {
-            uuid: 'USER_UUID_PLACEHOLDER'
-        };
-
-        async function init() {
-            try {
-                const res = await fetch('/api/user/' + CONFIG.uuid);
-                if (!res.ok) throw new Error('Failed to load');
-                
-                const data = await res.json();
-                
-                // Update Data
-                document.getElementById('used').innerText = formatBytes(data.traffic_used);
-                const limitStr = data.traffic_limit ? data.traffic_limit + ' GB' : 'Unlimited';
-                document.getElementById('limit').innerText = limitStr;
-                
-                // Expiry Logic
-                const expDate = new Date(data.expiration_date + 'T' + data.expiration_time + 'Z');
-                const daysLeft = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
-                document.getElementById('expiry').innerText = daysLeft > 0 ? daysLeft + ' Days' : 'Expired';
-                if (daysLeft < 0) document.getElementById('expiry').style.color = '#ef4444';
-
-                document.getElementById('short-id').innerText = CONFIG.uuid.substring(0,8) + '...';
-
-                // Progress Ring
-                if (data.traffic_limit) {
-                    const totalBytes = data.traffic_limit * 1024 * 1024 * 1024;
-                    const pct = Math.min((data.traffic_used / totalBytes) * 360, 360);
-                    const color = pct > 300 ? '#ef4444' : '#6366f1';
-                    document.getElementById('progress-ring').style.background = \`conic-gradient(\${color} \${pct}deg, #1e1e2e \${pct}deg)\`;
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        async function copySubscription() {
-            const link = window.location.origin + '/xray/' + CONFIG.uuid;
-            try {
-                await navigator.clipboard.writeText(link);
-                notify('Link Copied to Clipboard!');
-            } catch(e) {
-                prompt("Copy this link:", link);
-            }
-        }
-
-        async function showQR() {
-            const modal = document.getElementById('qrModal');
-            const qrContainer = document.getElementById('qr-code');
-            qrContainer.innerHTML = 'Loading...';
-            modal.style.display = 'flex';
-
-            // Fetch actual config string for the QR (better than just sub link)
-            const subLink = window.location.origin + '/xray/' + CONFIG.uuid;
-            try {
-                const res = await fetch('/xray/' + CONFIG.uuid);
-                const b64 = await res.text();
-                const text = atob(b64);
-                const firstConfig = text.split('\\n')[0] || subLink;
-                
-                qrContainer.innerHTML = '';
-                new QRCode(qrContainer, {
-                    text: firstConfig,
-                    width: 220,
-                    height: 220
-                });
-            } catch(e) {
-                qrContainer.innerHTML = '';
-                new QRCode(qrContainer, { text: subLink, width: 220, height: 220 });
-            }
-        }
-
-        function notify(msg) {
-            const el = document.getElementById('notification');
-            el.innerText = msg;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 3000);
-        }
-
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        init();
-    </script>
-</body>
-</html>`;
-
-// ============================================================================
-// LANDING PAGE HTML (Persian)
-// ============================================================================
-
-const landingPageHTML = `<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ VLESS Quantum Worker</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;900&display=swap');
-        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Vazirmatn', sans-serif; }
-        body { background: #000; color: white; overflow-x: hidden; }
-        
-        /* Quantum Background */
-        .bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index:-1; background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%); }
-        .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: float 10s infinite alternate; }
-        .orb-1 { width: 300px; height: 300px; background: #7b2cbf; top: 10%; left: 20%; }
-        .orb-2 { width: 400px; height: 400px; background: #4361ee; bottom: 10%; right: 20%; animation-delay: -5s; }
-
-        @keyframes float { 0% { transform: translate(0,0); } 100% { transform: translate(50px, 50px); } }
-
-        .container { max-width: 1200px; margin: 0 auto; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 100vh; justify-content: center; }
-        
-        h1 { font-size: 4rem; font-weight: 900; background: linear-gradient(45deg, #4facfe, #f093fb); -webkit-background-clip: text; color: transparent; text-shadow: 0 0 50px rgba(79, 172, 254, 0.5); margin-bottom: 20px; line-height: 1.2; }
-        p { font-size: 1.5rem; color: #b8c1ec; margin-bottom: 50px; max-width: 800px; }
-
-        .btn-glitch {
-            padding: 20px 60px;
-            font-size: 1.5rem;
-            background: transparent;
-            color: white;
-            border: 2px solid #4facfe;
-            border-radius: 50px;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: 0.3s;
-            text-decoration: none;
-            box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
-        }
-        .btn-glitch:hover { background: #4facfe; color: black; box-shadow: 0 0 50px #4facfe; transform: scale(1.05); }
-
-        /* Stats Grid */
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; width: 100%; margin-top: 80px; }
-        .feature-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); transition: 0.3s; }
-        .feature-card:hover { transform: translateY(-10px); border-color: #f093fb; background: rgba(255,255,255,0.1); }
-        .feature-icon { font-size: 3rem; margin-bottom: 20px; }
-        h3 { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
-        .desc { font-size: 1rem; color: #a0a0a0; margin: 0; }
-
-    </style>
-</head>
-<body>
-    <div class="bg">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-    </div>
-
-    <div class="container">
-        <h1>VLESS Quantum Worker</h1>
-        <p>نسل جدید فیلترشکن‌های ابری با تکنولوژی Cloudflare Edge. سرعت نور، امنیت کوانتومی.</p>
-        
-        <a href="/panel" class="btn-glitch">ورود به پنل کاربری</a>
-
-        <div class="features">
-            <div class="feature-card">
-                <div class="feature-icon">🚀</div>
-                <h3>سرعت بالا</h3>
-                <p class="desc">اتصال مستقیم به شبکه جهانی کلودفلر</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🛡️</div>
-                <h3>امنیت کامل</h3>
-                <p class="desc">رمزنگاری سرتاسری و غیرقابل ردیابی</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌐</div>
-                <h3>ضد فیلتر</h3>
-                <p class="desc">تکنولوژی VLESS برای عبور از محدودیت‌ها</p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>`;
-
-// ============================================================================
-// 🚀 MAIN WORKER ENTRY POINT (QUANTUM CORE)
-// ============================================================================
-
-import { Config, QuantumBrain } from './workers1.js';
-import { ensureTablesExist, performHealthCheck, getUserData } from './workers2.js';
-import { handleVlessWebSocket } from './workers3.js';
-import { handleSubscription } from './workers4.js';
-import { adminPanelHTML } from './workers5.js';
-import { userPanelHTML } from './workers6.js';
-import { landingPageHTML } from './workers7.js';
 
 export default {
     async fetch(request, env, ctx) {
-        try {
-            // 9. Meta-Decision Intelligence: How deep do we think?
-            // If the system is stressed (High Entropy), we enable Asymmetric Security.
-            const systemEntropy = QuantumBrain.metrics.entropyAvg;
-            const isUnderAttack = systemEntropy > 0.9;
+        // 1. Merge Environment Variables into Config
+        const uuid = env.UUID || Config.uuid;
+        const proxyIP = env.PROXYIP || Config.proxyIP;
+        const db = env.DB;
+        
+        // Update Global Config
+        Config.uuid = uuid;
+        Config.proxyIP = proxyIP;
+        Config.DB = db;
 
-            // 7. Asymmetric & Psychological Security (Tarpit)
-            // If under attack, don't just block. Confuse.
-            if (isUnderAttack && Math.random() < 0.5) {
-                // Return a stream that never ends, sending garbage bytes slowly.
-                const { readable, writable } = new TransformStream();
-                const writer = writable.getWriter();
-                ctx.waitUntil((async () => {
-                    while(true) {
-                        try {
-                            await writer.write(new TextEncoder().encode("QUANTUM_FLUX_"));
-                            await new Promise(r => setTimeout(r, 1000)); // Slow drip
-                        } catch(e) { break; }
-                    }
-                })());
-                return new Response(readable, { status: 200 });
-            }
-
-            const url = new URL(request.url);
-            const upgradeHeader = request.headers.get('Upgrade');
-            
-            // 1. WebSocket / VLESS Traffic Handling
-            if (upgradeHeader === 'websocket') {
-                const config = await Config.fromEnv(env);
-                const webSocketPair = new WebSocketPair();
-                const [client, server] = Object.values(webSocketPair);
-                
-                // 4. Perception-Level Zero Latency
-                // Accept immediately. Do not wait for auth or backend.
-                server.accept();
-                
-                // Hand off to Cognitive Core
-                // This function now runs independently, creating the "Quantum Execution Fabric"
-                handleVlessWebSocket(server, request.headers.get('CF-Connecting-IP'), config, env);
-                
-                return new Response(null, { 
-                    status: 101, 
-                    webSocket: client 
-                });
-            }
-
-            // 2. Robots & Security Files
-            if (url.pathname === '/robots.txt') return new Response("User-agent: *\nDisallow: /", { headers: {'Content-Type': 'text/plain'} });
-            if (url.pathname === '/security.txt') return new Response("Contact: admin@example.com\nExpires: 2030-01-01T00:00:00.000Z", { headers: {'Content-Type': 'text/plain'} });
-
-            // 3. Subscription Links
-            const subMatch = url.pathname.match(/^\/(xray|sb|clash)\/([a-z0-9-]+)$/);
-            if (subMatch) {
-                return await handleSubscription(request, env, subMatch[1], subMatch[2], url.hostname);
-            }
-
-            // 4. User Panel Access
-            const userPanelMatch = url.pathname.match(/^\/panel\/([a-z0-9-]+)$/);
-            if (userPanelMatch) {
-                const uuid = userPanelMatch[1];
-                const user = await getUserData(env, uuid);
-                
-                if (!user) {
-                    // 10. Non-Deterministic Attack Surface
-                    // Add variable delay before returning 404 to mess with timing attacks
-                    await new Promise(r => setTimeout(r, Math.random() * 50));
-                    return new Response(get404HTML(), { 
-                        status: 404, 
-                        headers: {'Content-Type': 'text/html;charset=utf-8'} 
-                    });
-                }
-                
-                const html = userPanelHTML.replace('USER_UUID_PLACEHOLDER', uuid);
-                return new Response(html, { headers: {'Content-Type': 'text/html;charset=utf-8'} });
-            }
-
-            // 5. Admin API (JSON)
-            if (url.pathname.startsWith('/api')) {
-                const cookie = request.headers.get('Cookie') || '';
-                const isAdmin = cookie.includes('auth=admin'); 
-                
-                if (!isAdmin && url.pathname !== '/api/login') {
-                    return new Response(JSON.stringify({error: 'Unauthorized'}), {status: 401});
-                }
-
-                // API: List Users
-                if (url.pathname === '/api/users') {
-                    if (request.method === 'GET') {
-                        const { results } = await env.DB.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
-                        return new Response(JSON.stringify(results), {headers:{'Content-Type':'application/json'}});
-                    }
-                    if (request.method === 'POST') {
-                        const body = await request.json();
-                        const newUUID = body.uuid || crypto.randomUUID();
-                        const limit = parseFloat(body.limit) || 0;
-                        const notes = body.notes || '';
-                        
-                        const d = new Date(); 
-                        d.setDate(d.getDate() + parseInt(body.days || 30));
-                        const expDate = d.toISOString().split('T')[0];
-                        
-                        await env.DB.prepare(
-                            "INSERT INTO users (uuid, expiration_date, expiration_time, traffic_limit, notes) VALUES (?, ?, '23:59:59', ?, ?)"
-                        ).bind(newUUID, expDate, limit, notes).run();
-                        
-                        return new Response(JSON.stringify({success: true}));
-                    }
-                }
-                
-                if (url.pathname.startsWith('/api/users/') && request.method === 'DELETE') {
-                    const delUuid = url.pathname.split('/').pop();
-                    await env.DB.prepare("DELETE FROM users WHERE uuid = ?").bind(delUuid).run();
-                    return new Response(JSON.stringify({success: true}));
-                }
-            }
-
-            // 6. Admin Panel HTML
-            if (url.pathname === '/admin') {
-                return new Response(adminPanelHTML, { headers: {'Content-Type': 'text/html;charset=utf-8'} });
-            }
-
-            // 7. Landing Page & Reverse Proxy
-            if (url.pathname === '/') {
-                if (Config.landingProxy) {
-                    const target = new URL(Config.landingProxy);
-                    target.pathname = url.pathname;
-                    return fetch(target.toString(), request);
-                }
-                return new Response(landingPageHTML, { headers: {'Content-Type': 'text/html;charset=utf-8'} });
-            }
-
-            // 8. Custom 404 Page (Quantum)
-            return new Response(get404HTML(), { 
-                status: 404, 
-                headers: {'Content-Type': 'text/html;charset=utf-8'} 
-            });
-
-        } catch (e) {
-            console.error('Worker Error:', e);
-            // 20. Unobservable Core: Return generic error to outside world, do not leak stack
-            return new Response('Edge Anomaly', { status: 500 });
+        // 2. Initialize Database (D1)
+        if (Config.DB) {
+            ctx.waitUntil(initializeDatabase(Config.DB));
         }
-    },
 
-    // Scheduled Tasks (Evolution & Cleanup)
-    async scheduled(event, env, ctx) {
-        ctx.waitUntil(ensureTablesExist(env));
-        ctx.waitUntil(performHealthCheck(env));
+        const url = new URL(request.url);
+
+        // 3. Router
+        
+        // A. Admin Panel & API
+        if (url.pathname.startsWith('/panel') || url.pathname.startsWith('/api')) {
+            return handleAdminRequest(request, url, env);
+        }
+
+        // B. VLESS WebSocket Handler
+        const upgradeHeader = request.headers.get('Upgrade');
+        if (upgradeHeader === 'websocket') {
+            return await vlessOverWSHandler(request);
+        }
+
+        // C. Default Fallback (Decoy Page or Simple Info)
+        const vlessLink = `vless://${Config.uuid}@${url.hostname}:443?encryption=none&security=tls&sni=${url.hostname}&fp=random&type=ws&host=${url.hostname}&path=%2F%3Fed%3D2048#${url.hostname}`;
+        
+        return new Response(`
+        <html>
+        <head><title>Quantum VLESS</title></head>
+        <body style="background: #0f0f0f; color: #333; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh;">
+            <div style="text-align: center;">
+                <h1>Quantum Edge Node</h1>
+                <p>Status: Active</p>
+                <p>Protocol: VLESS + WS + TLS</p>
+            </div>
+        </body>
+        </html>`, { 
+            status: 200, 
+            headers: { 'Content-Type': 'text/html' } 
+        });
     }
 };
+/**
+ * Handles Admin Panel and API requests.
+ * Routes: /panel, /api/users, /api/user
+ */
+async function handleAdminRequest(request, url, env) {
+    const key = url.searchParams.get('key');
+    
+    // Simple authentication: The key parameter must match the Admin UUID
+    // In a production env, you might want headers, but query param is standard for these panels.
+    if (key !== Config.uuid) {
+        return new Response('Unauthorized Access. Please provide the correct Admin UUID key.', { status: 401 });
+    }
 
-function get404HTML() {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<style>
-body{background:#000;color:#fff;font-family:sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;margin:0;overflow:hidden}
-h1{font-size:5rem;margin:0;background:linear-gradient(45deg,#f09,#0ff);-webkit-background-clip:text;color:transparent;}
-p{font-size:1.5rem;color:#888;}
-</style>
-</head>
-<body>
-<div style="text-align:center">
-<h1>404</h1>
-<p>Quantum Singularity - Page Not Found</p>
-</div>
-</body>
-</html>`;
+    // Serve HTML Panel
+    if (url.pathname === '/panel') {
+        return new Response(ADMIN_HTML, {
+            headers: { 'Content-Type': 'text/html' }
+        });
+    }
+
+    // API: Get Users
+    if (url.pathname === '/api/users' && request.method === 'GET') {
+        if (!Config.DB) {
+             // Fallback for non-D1 environments
+             return new Response(JSON.stringify([{ 
+                 uuid: Config.uuid, 
+                 name: 'Admin (Static)', 
+                 upload: 0, 
+                 download: 0, 
+                 last_active: new Date().toISOString() 
+             }]), { headers: { 'Content-Type': 'application/json' }});
+        }
+        const users = await getVLESSKeys(Config.DB);
+        return new Response(JSON.stringify(users), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
+    // API: Create User
+    if (url.pathname === '/api/user' && request.method === 'POST') {
+        if (!Config.DB) return new Response('Database not configured', { status: 500 });
+        const body = await request.json();
+        // Generate a new UUID for the user
+        const newUuid = crypto.randomUUID();
+        await addVLESSKey(Config.DB, newUuid, body.name);
+        return new Response(JSON.stringify({ uuid: newUuid, status: 'ok' }), { headers: { 'Content-Type': 'application/json' }});
+    }
+
+    // API: Delete User
+    if (url.pathname === '/api/user' && request.method === 'DELETE') {
+        if (!Config.DB) return new Response('Database not configured', { status: 500 });
+        const targetUuid = url.searchParams.get('uuid');
+        await deleteVLESSKey(Config.DB, targetUuid);
+        return new Response(JSON.stringify({ status: 'ok' }), { headers: { 'Content-Type': 'application/json' }});
+    }
+
+    return new Response('Not Found', { status: 404 });
+}
+
+/**
+ * Handles the VLESS WebSocket upgrade.
+ * Establishes the WebSocket pair and starts the VLESS protocol processor.
+ */
+async function vlessOverWSHandler(request) {
+    const webSocketPair = new WebSocketPair();
+    const [client, server] = Object.values(webSocketPair);
+
+    server.accept();
+
+    let address = '';
+    let portWithRandomLog = '';
+    const log = (info, event) => {
+        // console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
+    };
+    const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
+
+    // Convert the WebSocket into a readable stream for processing
+    const readableWebSocketStream = makeReadableWebSocketStream(server, earlyDataHeader, log);
+
+    let remoteSocketWrapper = {
+        value: null,
+    };
+
+    // Begin processing the VLESS stream
+    // We do not await this here; it runs in the background handling the connection
+    handleVLESSClient(readableWebSocketStream, server, remoteSocketWrapper, log);
+
+    return new Response(null, {
+        status: 101,
+        webSocket: client,
+    });
+}
+
+/**
+ * Wraps a WebSocket in a ReadableStream to handle VLESS chunks.
+ * Handles early data if present in the Sec-WebSocket-Protocol header.
+ */
+function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
+    let readableStreamCancel = false;
+    const stream = new ReadableStream({
+        start(controller) {
+            webSocketServer.addEventListener('message', (event) => {
+                if (readableStreamCancel) {
+                    return;
+                }
+                const message = event.data;
+                controller.enqueue(message);
+            });
+
+            // The client will close the connection if it's done
+            webSocketServer.addEventListener('close', () => {
+                safeCloseWebSocket(webSocketServer);
+                if (readableStreamCancel) {
+                    return;
+                }
+                controller.close();
+            });
+            webSocketServer.addEventListener('error', (err) => {
+                log('webSocketServer has error');
+                controller.error(err);
+            });
+            
+            // Handle early data for 0-RTT
+            const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
+            if (error) {
+                controller.error(error);
+            } else if (earlyData) {
+                controller.enqueue(earlyData);
+            }
+        },
+
+        pull(controller) {
+            // No-op
+        },
+
+        cancel(reason) {
+            if (readableStreamCancel) {
+                return;
+            }
+            log(`ReadableStream was canceled, due to ${reason}`);
+            readableStreamCancel = true;
+            safeCloseWebSocket(webSocketServer);
+        }
+    });
+
+    return stream;
+}
+
+// Helper: Safely decode Base64 URL Safe strings to ArrayBuffer
+function base64ToArrayBuffer(base64Str) {
+    if (!base64Str) {
+        return { earlyData: null, error: null };
+    }
+    try {
+        base64Str = base64Str.replace(/-/g, '+').replace(/_/g, '/');
+        const decode = atob(base64Str);
+        const arryBuffer = Uint8Array.from(decode, (c) => c.charCodeAt(0));
+        return { earlyData: arryBuffer.buffer, error: null };
+    } catch (error) {
+        return { earlyData: null, error };
+    }
+}
+
+function safeCloseWebSocket(socket) {
+    try {
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
+            socket.close();
+        }
+    } catch (e) {
+        // Ignore errors on close
+    }
+}
+
+/**
+ * Main VLESS Protocol Logic.
+ * Parses the header, authenticates the user, and routes traffic.
+ */
+async function handleVLESSClient(readableWebSocketStream, webSocket, remoteSocketWrapper, log) {
+    let vlessHeader = new Uint8Array(0);
+    let chunk = null;
+    let isHeaderProcessed = false;
+    let remoteConnection = null;
+    let writer = null;
+    
+    // Track usage for this session
+    let uploadBytes = 0;
+    let downloadBytes = 0;
+    let userID = null;
+
+    try {
+        const reader = readableWebSocketStream.getReader();
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            
+            chunk = value;
+            if (!isHeaderProcessed) {
+                // Append chunk to header buffer
+                const newHeader = new Uint8Array(vlessHeader.length + chunk.byteLength);
+                newHeader.set(vlessHeader);
+                newHeader.set(new Uint8Array(chunk), vlessHeader.length);
+                vlessHeader = newHeader;
+
+                // Try to process the header
+                // We need at least 24 bytes for a valid VLESS header with UUID
+                if (vlessHeader.length >= 24) {
+                    const buffer = vlessHeader.buffer;
+                    
+                    // Parse UUID to authenticate
+                    const version = new Uint8Array(buffer.slice(0, 1))[0];
+                    let uuid = [];
+                    const uuidBytes = new Uint8Array(buffer.slice(1, 17));
+                    for (let i = 0; i < 16; i++) {
+                        uuid.push(uuidBytes[i].toString(16).padStart(2, '0'));
+                    }
+                    const uuidStr = [
+                        uuid.slice(0, 4).join(''),
+                        uuid.slice(4, 6).join(''),
+                        uuid.slice(6, 8).join(''),
+                        uuid.slice(8, 10).join(''),
+                        uuid.slice(10).join('')
+                    ].join('-');
+
+                    // Authenticate via DB
+                    const isValid = await verifyUser(Config.DB, uuidStr);
+                    if (!isValid) {
+                        // Invalid user, close connection
+                        log(`Invalid UUID: ${uuidStr}`);
+                        return; 
+                    }
+                    userID = uuidStr;
+                    // Parse Option Length (1 byte)
+                    const optLength = new Uint8Array(buffer.slice(17, 18))[0];
+                    
+                    // The command byte is immediately after options
+                    // Header structure: [Version][UUID][OptLen][Options][Command][Port][AddrType][Addr]
+                    const commandIndex = 18 + optLength;
+                    const command = new Uint8Array(buffer.slice(commandIndex, commandIndex + 1))[0];
+                    
+                    // Port (2 bytes, big endian)
+                    const portIndex = commandIndex + 1;
+                    const portBuffer = new Uint8Array(buffer.slice(portIndex, portIndex + 2));
+                    const remotePort = (portBuffer[0] << 8) | portBuffer[1];
+                    
+                    // Address Type (1 byte)
+                    const addressTypeIndex = portIndex + 2;
+                    const addressType = new Uint8Array(buffer.slice(addressTypeIndex, addressTypeIndex + 1))[0];
+                    
+                    // Parsing Address
+                    let addressLength = 0;
+                    let addressValue = '';
+                    let addressIndex = addressTypeIndex + 1;
+                    
+                    if (addressType === 1) {
+                        // IPv4 (4 bytes)
+                        addressLength = 4;
+                        addressValue = new Uint8Array(buffer.slice(addressIndex, addressIndex + addressLength)).join('.');
+                    } else if (addressType === 2) {
+                        // Domain Name (1 byte length + length bytes)
+                        addressLength = new Uint8Array(buffer.slice(addressIndex, addressIndex + 1))[0];
+                        addressIndex += 1; // Move past the length byte
+                        addressValue = new TextDecoder().decode(buffer.slice(addressIndex, addressIndex + addressLength));
+                    } else if (addressType === 3) {
+                        // IPv6 (16 bytes)
+                        addressLength = 16;
+                        const dataView = new DataView(buffer.slice(addressIndex, addressIndex + addressLength));
+                        const ipv6 = [];
+                        for (let i = 0; i < 8; i++) {
+                            ipv6.push(dataView.getUint16(i * 2).toString(16));
+                        }
+                        addressValue = ipv6.join(':');
+                    } else {
+                        // Unknown Address Type
+                        log(`Unknown Address Type: ${addressType}`);
+                        return;
+                    }
+                    
+                    // Check if we have received the full header based on parsed length
+                    const currentHeaderLength = addressIndex + addressLength;
+                    if (vlessHeader.byteLength < currentHeaderLength) {
+                        // Need more data, wait for next chunk
+                        continue;
+                    }
+                    
+                    isHeaderProcessed = true;
+                    
+                    // Extract payload (data after header)
+                    const vlessPayload = vlessHeader.slice(currentHeaderLength);
+                    
+                    // Connect to Remote
+                    // Handle IPv6 brackets for connection string if needed
+                    const remoteHost = addressValue.includes(':') && !addressValue.startsWith('[') ? `[${addressValue}]` : addressValue;
+                    
+                    try {
+                        // Establish TCP connection to the target
+                        // Assuming 'connect' is available from 'cloudflare:sockets' (global or imported)
+                        remoteConnection = connect({
+                            hostname: remoteHost,
+                            port: remotePort
+                        });
+                    } catch (err) {
+                        log(`Connection Failed to ${remoteHost}:${remotePort}`, err);
+                        return;
+                    }
+                    
+                    remoteSocketWrapper.value = remoteConnection;
+                    writer = remoteConnection.writable.getWriter();
+                    
+                    // Send VLESS Response Header
+                    // Version (1 byte) + AddOns (1 byte, 0)
+                    webSocket.send(new Uint8Array([vlessHeader[0], 0]));
+                    
+                    // Pipe Remote -> WebSocket (Download)
+                    // We run this without awaiting to allow bidirectional traffic loop
+                    (async () => {
+                        try {
+                            const reader = remoteConnection.readable.getReader();
+                            while(true) {
+                                const { value, done } = await reader.read();
+                                if (done) break;
+                                if (value) {
+                                    downloadBytes += value.byteLength;
+                                    webSocket.send(value);
+                                }
+                            }
+                        } catch(e) {
+                             // Ignore pipe errors (connection closed)
+                        }
+                    })();
+                    
+                    // Write Initial Payload from Client -> Remote
+                    if (vlessPayload.length > 0) {
+                        uploadBytes += vlessPayload.length;
+                        await writer.write(vlessPayload);
+                    }
+                }
+            } else {
+                // Header already processed, forward raw data chunks
+                if (chunk) {
+                    uploadBytes += chunk.byteLength;
+                    if (writer) {
+                        await writer.write(chunk);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        log('VLESS Handler Error', error);
+    } finally {
+        // Cleanup and save stats
+        if (userID && Config.DB) {
+            // Update usage stats in D1 Database
+            // Note: Since ctx is not available in this scope, we execute best-effort.
+            updateUsage(Config.DB, userID, uploadBytes, downloadBytes).catch(() => {});
+        }
+        
+        if (remoteConnection) {
+            try { remoteConnection.close(); } catch(e) {}
+        }
+        safeCloseWebSocket(webSocket);
+    }
+}
+/**
+ * Optional: Scamalytics IP Risk Check
+ * Use this function to validate client IPs before establishing outbound connections.
+ * Recommended integration: Call inside handleVLESSClient before connect().
+ */
+async function checkIPRisk(ip) {
+    // Skip check if API is not configured
+    if (!Config.API || !Config.API.startsWith('http')) return true;
+    
+    try {
+        // Assuming user passes API Key via env or appends to Config.API
+        const res = await fetch(`${Config.API}${ip}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            // Block if fraud score is high (e.g., > 75)
+            if (data.score && data.score > 75) {
+                return false;
+            }
+        }
+        return true; // Fail open (allow) if check fails or API is down
+    } catch (e) {
+        // console.error("Risk Check Failed:", e);
+        return true;
+    }
 }
