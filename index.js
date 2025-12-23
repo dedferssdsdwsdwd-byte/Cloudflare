@@ -1,6 +1,33 @@
 import { connect } from 'cloudflare:sockets';
 
 // ============================================================================
+// TYPESCRIPT INTERFACES & TYPES
+// ============================================================================
+
+/**
+ * @typedef {Object} User
+ * @property {string} uuid
+ * @property {string} created_at
+ * @property {string} expiration_date
+ * @property {string} expiration_time
+ * @property {string} notes
+ * @property {number} traffic_limit
+ * @property {number} traffic_used
+ * @property {number} ip_limit
+ */
+
+/**
+ * @typedef {Object} VlessHeaderResult
+ * @property {boolean} hasError
+ * @property {string} [message]
+ * @property {User} [user]
+ * @property {string} [addressRemote]
+ * @property {number} [portRemote]
+ * @property {number} [rawDataIndex]
+ * @property {boolean} [isUDP]
+ */
+
+// ============================================================================
 // CONFIGURATION & CONSTANTS
 // ============================================================================
 
@@ -18,28 +45,37 @@ const Config = {
         address: '',
     },
 
+    /**
+     * Load configuration from environment variables
+     * @param {any} env - Cloudflare environment bindings
+     * @returns {Promise<Object>} Configuration object
+     */
     async fromEnv(env) {
         let selectedProxyIP = null;
 
+        // Try to get best proxy from database
         if (env.DB) {
             try {
                 const { results } = await env.DB.prepare(
                     "SELECT ip_port FROM proxy_health WHERE is_healthy = 1 ORDER BY latency_ms ASC LIMIT 1"
                 ).all();
-                selectedProxyIP = results[0]?.ip_port || null;
-            } catch (e) {
-                console.error('DB proxy selection error:', e.message);
+                selectedProxyIP = results && results[0] ? results[0].ip_port : null;
+            } catch (error) {
+                console.error('DB proxy selection error:', error.message);
             }
         }
 
+        // Fallback to environment variable
         if (!selectedProxyIP) {
             selectedProxyIP = env.PROXYIP;
         }
 
+        // Fallback to random default proxy
         if (!selectedProxyIP) {
             selectedProxyIP = this.proxyIPs[Math.floor(Math.random() * this.proxyIPs.length)];
         }
 
+        // Final fallback
         if (!selectedProxyIP) {
             console.error('CRITICAL: No proxy IP available');
             selectedProxyIP = this.proxyIPs[0] || '127.0.0.1:443';
@@ -50,11 +86,12 @@ const Config = {
         let socks5Enabled = !!env.SOCKS5 || this.socks5.enabled;
         let parsedSocks5Address = null;
 
+        // Parse SOCKS5 address if enabled
         if (socks5Enabled && socks5Address) {
             try {
                 parsedSocks5Address = socks5AddressParser(socks5Address);
-            } catch (e) {
-                console.error('SOCKS5 parsing error:', e.message);
+            } catch (error) {
+                console.error('SOCKS5 parsing error:', error.message);
                 socks5Enabled = false;
             }
         }
@@ -108,6 +145,11 @@ const CONST = {
 // VLESS LINK GENERATION
 // ============================================================================
 
+/**
+ * Generate a random path for VLESS links
+ * @param {number} length - Length of the random path
+ * @returns {string} Random path starting with /
+ */
 function generateRandomPath(length = 12) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -150,10 +192,21 @@ const CORE_PRESETS = {
     },
 };
 
+/**
+ * Create a name tag for VLESS link
+ * @param {string} tag - Base tag name
+ * @param {string} proto - Protocol name
+ * @returns {string} Formatted name
+ */
 function makeName(tag, proto) {
     return `${tag}-${proto.toUpperCase()}`;
 }
 
+/**
+ * Randomize case of characters in string (for SNI randomization)
+ * @param {string} str - Input string
+ * @returns {string} String with randomized case
+ */
 function randomizeCase(str) {
     if (!str) return str;
     let result = '';
@@ -163,6 +216,11 @@ function randomizeCase(str) {
     return result;
 }
 
+/**
+ * Create a VLESS protocol link
+ * @param {Object} params - Link parameters
+ * @returns {string} Complete VLESS link
+ */
 function createVlessLink({ userID, address, port, host, path, security, sni, fp, alpn, extra = {}, name }) {
     const params = new URLSearchParams({
         encryption: 'none',
@@ -176,6 +234,7 @@ function createVlessLink({ userID, address, port, host, path, security, sni, fp,
     if (fp) params.set('fp', fp);
     if (alpn) params.set('alpn', alpn);
 
+    // Add extra parameters
     for (const [k, v] of Object.entries(extra)) {
         params.set(k, String(v));
     }
@@ -183,8 +242,14 @@ function createVlessLink({ userID, address, port, host, path, security, sni, fp,
     return `vless://${userID}@${address}:${port}?${params.toString()}#${encodeURIComponent(name)}`;
 }
 
+/**
+ * Build a VLESS link based on core type and protocol
+ * @param {Object} params - Build parameters
+ * @returns {string} VLESS link
+ */
 function buildLink({ core, proto, userID, hostName, address, port, tag }) {
-    const p = CORE_PRESETS[core]?.[proto];
+    const p = CORE_PRESETS[core] && CORE_PRESETS[core][proto] ? CORE_PRESETS[core][proto] : null;
+    
     if (!p) {
         console.error(`Invalid core/proto: ${core}/${proto}`);
         return createVlessLink({
@@ -209,12 +274,25 @@ function buildLink({ core, proto, userID, hostName, address, port, tag }) {
     });
 }
 
+/**
+ * Pick a random element from array
+ * @param {Array} arr - Input array
+ * @returns {*} Random element
+ */
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // ============================================================================
 // SUBSCRIPTION HANDLER
 // ============================================================================
 
+/**
+ * Handle subscription requests and generate VLESS links
+ * @param {string} core - Core type (xray or sb)
+ * @param {string} userID - User UUID
+ * @param {string} hostName - Hostname
+ * @param {any} env - Environment bindings
+ * @returns {Promise<Response>} Response with base64 encoded links
+ */
 async function handleIpSubscription(core, userID, hostName, env) {
     const mainDomains = [
         hostName,
@@ -238,6 +316,7 @@ async function handleIpSubscription(core, userID, hostName, env) {
     let links = [];
     const isPagesDeployment = hostName.endsWith('.pages.dev');
 
+    // Generate links for domains
     mainDomains.slice(0, 15).forEach((domain, i) => {
         links.push(
             buildLink({ core, proto: 'tls', userID, hostName, address: domain, port: pick(httpsPorts), tag: `D${i + 1}-TLS-1` }),
@@ -251,6 +330,7 @@ async function handleIpSubscription(core, userID, hostName, env) {
         }
     });
 
+    // Get dynamic proxy IPs from database
     let dynamicProxyIPs = [];
     if (env.DB) {
         try {
@@ -258,25 +338,27 @@ async function handleIpSubscription(core, userID, hostName, env) {
                 "SELECT ip_port FROM proxy_health WHERE is_healthy = 1 ORDER BY latency_ms ASC LIMIT 20"
             ).all();
             dynamicProxyIPs = results.map((r) => r.ip_port.split(':')[0]);
-        } catch (e) {
-            console.error('DB proxy fetch error:', e.message);
+        } catch (error) {
+            console.error('DB proxy fetch error:', error.message);
         }
     }
 
+    // Fallback to GitHub IPs if database query failed
     if (dynamicProxyIPs.length === 0) {
         try {
-            const r = await fetch('https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/Cloudflare-IPs.json');
-            if (r.ok) {
-                const json = await r.json();
+            const response = await fetch('https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/Cloudflare-IPs.json');
+            if (response.ok) {
+                const json = await response.json();
                 dynamicProxyIPs = [...(json.ipv4 || []), ...(json.ipv6 || [])]
                     .slice(0, 30)
                     .map((x) => x.ip);
             }
-        } catch (e) {
-            console.error('IP fetch error:', e.message);
+        } catch (error) {
+            console.error('IP fetch error:', error.message);
         }
     }
 
+    // Generate links for proxy IPs
     dynamicProxyIPs.slice(0, 20).forEach((ip, i) => {
         const formattedAddress = ip.includes(':') ? `[${ip}]` : ip;
         links.push(
@@ -291,6 +373,7 @@ async function handleIpSubscription(core, userID, hostName, env) {
         }
     });
 
+    // Remove duplicates and shuffle
     const uniqueLinks = Array.from(new Set(links)).sort(() => 0.5 - Math.random());
 
     const headers = new Headers({
@@ -298,7 +381,7 @@ async function handleIpSubscription(core, userID, hostName, env) {
         'Profile-Update-Interval': '6',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
     });
-    addSecurityHeaders(headers, null, {});
+    addSecurityHeaders(headers, null);
 
     return new Response(safeBase64Encode(uniqueLinks.join('\n')), { headers });
 }
@@ -307,6 +390,14 @@ async function handleIpSubscription(core, userID, hostName, env) {
 // PROTOCOL HANDLER
 // ============================================================================
 
+/**
+ * Handle WebSocket upgrade for VLESS protocol
+ * @param {Request} request - Incoming request
+ * @param {Object} config - Configuration object
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ * @returns {Promise<Response>} WebSocket response
+ */
 async function ProtocolOverWSHandler(request, config, env, ctx) {
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
@@ -320,14 +411,16 @@ async function ProtocolOverWSHandler(request, config, env, ctx) {
 
     const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
 
+    // Check if IP is blocked
     const isBlocked = await checkBlockedIP(env.DB, clientIp);
     if (isBlocked) {
         server.close(1008, 'Access Denied');
         return new Response('Access Denied', { status: 403 });
     }
 
-    handleWebSocket(server, clientIp, config, env, ctx).catch((err) => {
-        console.error('WebSocket error:', err);
+    // Handle WebSocket connection asynchronously
+    handleWebSocket(server, clientIp, config, env, ctx).catch((error) => {
+        console.error('WebSocket error:', error);
         safeCloseWebSocket(server);
     });
 
@@ -337,6 +430,14 @@ async function ProtocolOverWSHandler(request, config, env, ctx) {
     });
 }
 
+/**
+ * Handle WebSocket connection and data streaming
+ * @param {WebSocket} ws - WebSocket connection
+ * @param {string} clientIp - Client IP address
+ * @param {Object} config - Configuration object
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ */
 async function handleWebSocket(ws, clientIp, config, env, ctx) {
     let remoteSocket = null;
     let userUUID = '';
@@ -347,6 +448,7 @@ async function handleWebSocket(ws, clientIp, config, env, ctx) {
 
         await readableStream.pipeTo(new WritableStream({
             async write(chunk) {
+                // First chunk contains VLESS header
                 if (!remoteSocket) {
                     const parsed = await processVlessHeader(chunk, env, ctx);
                     if (parsed.hasError || !parsed.user) {
@@ -355,6 +457,7 @@ async function handleWebSocket(ws, clientIp, config, env, ctx) {
 
                     userUUID = parsed.user.uuid;
 
+                    // Create TCP connection to proxy server
                     const address = config.proxyIP || parsed.addressRemote;
                     const port = config.proxyPort || parsed.portRemote;
 
@@ -363,17 +466,21 @@ async function handleWebSocket(ws, clientIp, config, env, ctx) {
                         port: port,
                     });
 
+                    // Send response header to client
                     const responseHeader = new Uint8Array([0x00, 0x00]);
                     ws.send(responseHeader);
 
-                    pipeRemoteToWS(remoteSocket, ws).catch((err) => {
-                        console.error('Pipe error:', err);
+                    // Pipe remote data to WebSocket
+                    pipeRemoteToWS(remoteSocket, ws).catch((error) => {
+                        console.error('Pipe error:', error);
                     });
 
+                    // Write initial data to remote
                     const writer = remoteSocket.writable.getWriter();
                     await writer.write(chunk.slice(parsed.rawDataIndex));
                     writer.releaseLock();
                 } else {
+                    // Write subsequent data to remote
                     const writer = remoteSocket.writable.getWriter();
                     await writer.write(chunk);
                     writer.releaseLock();
@@ -384,29 +491,40 @@ async function handleWebSocket(ws, clientIp, config, env, ctx) {
                 if (remoteSocket) {
                     try {
                         remoteSocket.close();
-                    } catch (e) {}
+                    } catch (error) {
+                        console.error('Error closing remote socket:', error);
+                    }
                 }
             },
-            abort(err) {
-                console.log('Stream aborted:', err);
+            abort(reason) {
+                console.log('Stream aborted:', reason);
                 if (remoteSocket) {
                     try {
                         remoteSocket.close();
-                    } catch (e) {}
+                    } catch (error) {
+                        console.error('Error closing remote socket:', error);
+                    }
                 }
             }
         }));
-    } catch (err) {
-        console.error('WebSocket handler error:', err);
+    } catch (error) {
+        console.error('WebSocket handler error:', error);
         safeCloseWebSocket(ws);
         if (remoteSocket) {
             try {
                 remoteSocket.close();
-            } catch (e) {}
+            } catch (closeError) {
+                console.error('Error closing remote socket:', closeError);
+            }
         }
     }
 }
 
+/**
+ * Pipe data from remote socket to WebSocket
+ * @param {Socket} remoteSocket - Remote TCP socket
+ * @param {WebSocket} ws - WebSocket connection
+ */
 async function pipeRemoteToWS(remoteSocket, ws) {
     try {
         await remoteSocket.readable.pipeTo(new WritableStream({
@@ -418,14 +536,273 @@ async function pipeRemoteToWS(remoteSocket, ws) {
             close() {
                 safeCloseWebSocket(ws);
             },
-            abort(err) {
-                console.error('Remote abort:', err);
+            abort(reason) {
+                console.error('Remote abort:', reason);
                 safeCloseWebSocket(ws);
             }
         }));
-    } catch (err) {
-        console.error('Pipe remote error:', err);
+    } catch (error) {
+        console.error('Pipe remote error:', error);
         safeCloseWebSocket(ws);
+    }
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Generate a cryptographic nonce for CSP
+ * @returns {string} Base64 encoded nonce
+ */
+function generateNonce() {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return btoa(String.fromCharCode(...Array.from(arr)));
+}
+
+/**
+ * Add security headers to response
+ * @param {Headers} headers - Response headers object
+ * @param {string|null} nonce - CSP nonce
+ */
+function addSecurityHeaders(headers, nonce) {
+    const csp = [
+        "default-src 'self'",
+        nonce ? `script-src 'self' 'nonce-${nonce}'` : "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline'",
+        "object-src 'none'",
+    ].join('; ');
+
+    headers.set('Content-Security-Policy', csp);
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('X-Frame-Options', 'DENY');
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+}
+
+/**
+ * Safely encode string to base64
+ * @param {string} str - Input string
+ * @returns {string} Base64 encoded string
+ */
+function safeBase64Encode(str) {
+    try {
+        return btoa(unescape(encodeURIComponent(str)));
+    } catch (error) {
+        console.error('Base64 error:', error);
+        return btoa(str);
+    }
+}
+
+/**
+ * Validate UUID format
+ * @param {string} uuid - UUID string
+ * @returns {boolean} True if valid UUID
+ */
+function isValidUUID(uuid) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
+}
+
+/**
+ * Convert Uint8Array to UUID string
+ * @param {Uint8Array} arr - Byte array
+ * @returns {string} UUID string
+ */
+function stringify(arr) {
+    const byteToHex = [];
+    for (let i = 0; i < 256; i++) {
+        byteToHex[i] = (i + 0x100).toString(16).slice(1);
+    }
+
+    return (
+        byteToHex[arr[0]] + byteToHex[arr[1]] + byteToHex[arr[2]] + byteToHex[arr[3]] + '-' +
+        byteToHex[arr[4]] + byteToHex[arr[5]] + '-' +
+        byteToHex[arr[6]] + byteToHex[arr[7]] + '-' +
+        byteToHex[arr[8]] + byteToHex[arr[9]] + '-' +
+        byteToHex[arr[10]] + byteToHex[arr[11]] + byteToHex[arr[12]] + byteToHex[arr[13]] + byteToHex[arr[14]] + byteToHex[arr[15]]
+    ).toLowerCase();
+}
+
+/**
+ * Parse SOCKS5 address format
+ * @param {string} address - SOCKS5 address string
+ * @returns {Object} Parsed address components
+ */
+function socks5AddressParser(address) {
+    const authIndex = address.indexOf('@');
+    let username, password;
+    let hostPart = address;
+
+    if (authIndex !== -1) {
+        const authPart = address.substring(0, authIndex);
+        const colonIndex = authPart.indexOf(':');
+        username = authPart.substring(0, colonIndex);
+        password = authPart.substring(colonIndex + 1);
+        hostPart = address.substring(authIndex + 1);
+    }
+
+    const lastColon = hostPart.lastIndexOf(':');
+    const hostname = hostPart.substring(0, lastColon);
+    const port = parseInt(hostPart.substring(lastColon + 1), 10);
+
+    return { username, password, hostname, port };
+}
+
+// ============================================================================
+// MAIN WORKER EXPORT
+// ============================================================================
+
+export default {
+    /**
+     * Handle incoming HTTP requests
+     * @param {Request} request - Incoming request
+     * @param {any} env - Environment bindings
+     * @param {any} ctx - Execution context
+     * @returns {Promise<Response>} Response object
+     */
+    async fetch(request, env, ctx) {
+        try {
+            // Ensure database tables exist
+            await ensureTablesExist(env, ctx);
+
+            const url = new URL(request.url);
+            const upgradeHeader = request.headers.get('Upgrade');
+
+            // Handle WebSocket connections
+            if (upgradeHeader === 'websocket') {
+                const config = await Config.fromEnv(env);
+                return await ProtocolOverWSHandler(request, config, env, ctx);
+            }
+
+            // Handle subscription requests
+            const pathSegments = url.pathname.split('/').filter(Boolean);
+            if (pathSegments.length >= 2) {
+                const [coreType, uuid] = pathSegments;
+
+                if ((coreType === 'xray' || coreType === 'sb') && isValidUUID(uuid)) {
+                    const user = await getUserData(env, uuid, ctx);
+                    if (!user) {
+                        return new Response('User not found', { status: 404 });
+                    }
+                    return await handleIpSubscription(coreType, uuid, url.hostname, env);
+                }
+            }
+
+            // Serve homepage
+            const headers = new Headers({ 'Content-Type': 'text/html;charset=utf-8' });
+            const nonce = generateNonce();
+            addSecurityHeaders(headers, nonce);
+
+            return new Response(getHomepageHTML(nonce), { headers });
+
+        } catch (error) {
+            console.error('Main error:', error);
+            return new Response('Internal Server Error', { status: 500 });
+        }
+    },
+
+    /**
+     * Handle scheduled cron tasks
+     * @param {ScheduledEvent} event - Scheduled event
+     * @param {any} env - Environment bindings
+     * @param {any} ctx - Execution context
+     */
+    async scheduled(event, env, ctx) {
+        console.log('Scheduled task running at:', new Date().toISOString());
+        try {
+            await ensureTablesExist(env, ctx);
+            await performHealthCheck(env, ctx);
+            await cleanupOldData(env, ctx);
+        } catch (error) {
+            console.error('Scheduled error:', error);
+        }
+    },
+};
+
+// ============================================================================
+// HEALTH CHECK & CLEANUP
+// ============================================================================
+
+/**
+ * Perform health check on proxy servers
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ */
+async function performHealthCheck(env, ctx) {
+    if (!env.DB) return;
+
+    const proxyIps = env.PROXYIPS ? env.PROXYIPS.split(',').map((ip) => ip.trim()) : Config.proxyIPs;
+
+    const results = await Promise.allSettled(proxyIps.map(async (ipPort) => {
+        const [host, port = '443'] = ipPort.split(':');
+        let latency = null;
+        let isHealthy = 0;
+        const start = Date.now();
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONST.HEALTH_CHECK_TIMEOUT);
+            
+            const response = await fetch(`https://${host}:${port}`, {
+                method: 'HEAD',
+                signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+
+            if (response.ok || response.status >= 400) {
+                latency = Date.now() - start;
+                isHealthy = 1;
+            }
+        } catch (error) {
+            console.error(`Health check failed for ${ipPort}:`, error.message);
+        }
+
+        return { ipPort, isHealthy, latency };
+    }));
+
+    // Save results to database
+    const statements = [];
+    for (const result of results) {
+        if (result.status === 'fulfilled') {
+            const { ipPort, isHealthy, latency } = result.value;
+            statements.push(
+                env.DB.prepare(
+                    "INSERT OR REPLACE INTO proxy_health (ip_port, is_healthy, latency_ms, last_check) VALUES (?, ?, ?, ?)"
+                ).bind(ipPort, isHealthy, latency, Math.floor(Date.now() / 1000))
+            );
+        }
+    }
+
+    try {
+        if (statements.length > 0) {
+            await env.DB.batch(statements);
+            console.log('Health check completed successfully');
+        }
+    } catch (error) {
+        console.error('Health check DB error:', error);
+    }
+}
+
+/**
+ * Clean up old data from database
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ */
+async function cleanupOldData(env, ctx) {
+    if (!env.DB) return;
+
+    try {
+        const cleanupQueries = [
+            env.DB.prepare(`DELETE FROM user_ips WHERE last_seen < datetime('now', '-${CONST.IP_CLEANUP_AGE_DAYS} days')`).run(),
+            env.DB.prepare("DELETE FROM ip_blacklist WHERE expiration <= ?").bind(Math.floor(Date.now() / 1000)).run(),
+            env.DB.prepare("DELETE FROM key_value WHERE expiration <= ?").bind(Math.floor(Date.now() / 1000)).run(),
+        ];
+
+        await Promise.all(cleanupQueries);
+        console.log('Cleanup completed successfully');
+    } catch (error) {
+        console.error('Cleanup error:', error);
     }
 }
 
@@ -433,17 +810,26 @@ async function pipeRemoteToWS(remoteSocket, ws) {
 // VLESS HEADER PARSER
 // ============================================================================
 
+/**
+ * Process and parse VLESS protocol header
+ * @param {Uint8Array} buffer - Buffer containing VLESS header
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ * @returns {Promise<VlessHeaderResult>} Parsed header result
+ */
 async function processVlessHeader(buffer, env, ctx) {
     try {
         if (buffer.byteLength < 24) {
             return { hasError: true, message: 'Invalid header length' };
         }
 
+        // Check protocol version
         const version = buffer[0];
         if (version !== 0x00) {
             return { hasError: true, message: 'Unsupported version' };
         }
 
+        // Extract user UUID
         const uuid = stringify(buffer.slice(1, 17));
         const user = await getUserData(env, uuid, ctx);
         if (!user) {
@@ -454,19 +840,24 @@ async function processVlessHeader(buffer, env, ctx) {
         const commandIndex = 18 + optLength;
         const command = buffer[commandIndex];
 
+        // Extract destination port
         const portRemote = (buffer[commandIndex + 1] << 8) | buffer[commandIndex + 2];
         const addressType = buffer[commandIndex + 3];
 
         let addressRemote = '';
         let addressLength = 0;
 
+        // Parse destination address based on type
         if (addressType === 0x01) {
+            // IPv4
             addressLength = 4;
             addressRemote = Array.from(buffer.slice(commandIndex + 4, commandIndex + 8)).join('.');
         } else if (addressType === 0x02) {
+            // Domain Name
             addressLength = buffer[commandIndex + 4];
             addressRemote = new TextDecoder().decode(buffer.slice(commandIndex + 5, commandIndex + 5 + addressLength));
         } else if (addressType === 0x03) {
+            // IPv6
             addressLength = 16;
             const ipv6 = buffer.slice(commandIndex + 4, commandIndex + 20);
             addressRemote = Array.from({ length: 8 }, (_, i) =>
@@ -484,8 +875,8 @@ async function processVlessHeader(buffer, env, ctx) {
             rawDataIndex,
             isUDP: command === 0x02,
         };
-    } catch (err) {
-        return { hasError: true, message: err.message };
+    } catch (error) {
+        return { hasError: true, message: error.message };
     }
 }
 
@@ -493,6 +884,12 @@ async function processVlessHeader(buffer, env, ctx) {
 // WEBSOCKET UTILITIES
 // ============================================================================
 
+/**
+ * Convert WebSocket to ReadableStream
+ * @param {WebSocket} ws - WebSocket connection
+ * @param {string} earlyDataHeader - Early data header
+ * @returns {ReadableStream} Readable stream
+ */
 function makeReadableWebSocketStream(ws, earlyDataHeader) {
     let hasReceivedEarlyData = false;
 
@@ -509,10 +906,11 @@ function makeReadableWebSocketStream(ws, earlyDataHeader) {
                 controller.close();
             });
 
-            ws.addEventListener('error', (err) => {
-                controller.error(err);
+            ws.addEventListener('error', (error) => {
+                controller.error(error);
             });
 
+            // Process early data if present
             if (earlyDataHeader && !hasReceivedEarlyData) {
                 const { earlyData } = base64ToArrayBuffer(earlyDataHeader);
                 if (earlyData) {
@@ -524,6 +922,11 @@ function makeReadableWebSocketStream(ws, earlyDataHeader) {
     });
 }
 
+/**
+ * Convert base64 string to ArrayBuffer
+ * @param {string} base64 - Base64 encoded string
+ * @returns {Object} Object with earlyData and error
+ */
 function base64ToArrayBuffer(base64) {
     if (!base64) return { earlyData: null, error: null };
     try {
@@ -533,18 +936,22 @@ function base64ToArrayBuffer(base64) {
             bytes[i] = binary.charCodeAt(i);
         }
         return { earlyData: bytes, error: null };
-    } catch (err) {
-        return { earlyData: null, error: err };
+    } catch (error) {
+        return { earlyData: null, error: error };
     }
 }
 
+/**
+ * Safely close WebSocket connection
+ * @param {WebSocket} ws - WebSocket to close
+ */
 function safeCloseWebSocket(ws) {
     try {
         if (ws.readyState === CONST.WS_READY_STATE_OPEN || ws.readyState === CONST.WS_READY_STATE_CLOSING) {
             ws.close(1000, 'Normal');
         }
-    } catch (err) {
-        console.error('Close error:', err);
+    } catch (error) {
+        console.error('Close error:', error);
     }
 }
 
@@ -552,6 +959,11 @@ function safeCloseWebSocket(ws) {
 // DATABASE & USER FUNCTIONS
 // ============================================================================
 
+/**
+ * Ensure all required database tables exist
+ * @param {any} env - Environment bindings
+ * @param {any} ctx - Execution context
+ */
 async function ensureTablesExist(env, ctx) {
     if (!env.DB) return;
 
@@ -594,6 +1006,7 @@ async function ensureTablesExist(env, ctx) {
     try {
         await env.DB.batch(tables.map((sql) => env.DB.prepare(sql)));
         
+        // Add test user
         const testUUID = env.UUID || Config.userID;
         const futureDate = new Date();
         futureDate.setMonth(futureDate.getMonth() + 1);
@@ -602,24 +1015,37 @@ async function ensureTablesExist(env, ctx) {
             "INSERT OR IGNORE INTO users (uuid, expiration_date, expiration_time, notes) VALUES (?, ?, ?, ?)"
         ).bind(testUUID, futureDate.toISOString().split('T')[0], '23:59:59', 'Test User').run();
         
-        console.log('Tables initialized');
-    } catch (err) {
-        console.error('DB init error:', err);
+        console.log('Tables initialized successfully');
+    } catch (error) {
+        console.error('DB init error:', error);
     }
 }
 
+/**
+ * Get user data from database
+ * @param {any} env - Environment bindings
+ * @param {string} uuid - User UUID
+ * @param {any} ctx - Execution context
+ * @returns {Promise<User|null>} User object or null
+ */
 async function getUserData(env, uuid, ctx) {
     if (!isValidUUID(uuid) || !env.DB) return null;
 
     try {
         const user = await env.DB.prepare("SELECT * FROM users WHERE uuid = ?").bind(uuid).first();
         return user;
-    } catch (err) {
-        console.error('Get user error:', err);
+    } catch (error) {
+        console.error('Get user error:', error);
         return null;
     }
 }
 
+/**
+ * Check if IP address is blocked
+ * @param {any} db - Database binding
+ * @param {string} ip - IP address to check
+ * @returns {Promise<boolean>} True if blocked
+ */
 async function checkBlockedIP(db, ip) {
     if (!db) return false;
 
@@ -627,220 +1053,32 @@ async function checkBlockedIP(db, ip) {
         const now = Math.floor(Date.now() / 1000);
         const entry = await db.prepare("SELECT * FROM ip_blacklist WHERE ip = ?").bind(ip).first();
         return entry && entry.expiration > now;
-    } catch (err) {
-        console.error('Check blocked error:', err);
+    } catch (error) {
+        console.error('Check blocked IP error:', error);
         return false;
     }
 }
 
 // ============================================================================
-// UTILITY FUNCTIONS
+// HOMEPAGE HTML - ULTIMATE QUANTUM EDITION
 // ============================================================================
 
-function generateNonce() {
-    const arr = new Uint8Array(16);
-    crypto.getRandomValues(arr);
-    return btoa(String.fromCharCode(...Array.from(arr)));
-}
-
-function addSecurityHeaders(headers, nonce, cspDomains) {
-    const csp = [
-        "default-src 'self'",
-        nonce ? `script-src 'self' 'nonce-${nonce}'` : "script-src 'self' 'unsafe-inline'",
-        "style-src 'self' 'unsafe-inline'",
-        "object-src 'none'",
-    ].join('; ');
-
-    headers.set('Content-Security-Policy', csp);
-    headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-Frame-Options', 'DENY');
-    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-}
-
-function safeBase64Encode(str) {
-    try {
-        return btoa(unescape(encodeURIComponent(str)));
-    } catch (err) {
-        console.error('Base64 error:', err);
-        return btoa(str);
-    }
-}
-
-function isValidUUID(uuid) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
-}
-
-function stringify(arr) {
-    const byteToHex = [];
-    for (let i = 0; i < 256; i++) {
-        byteToHex[i] = (i + 0x100).toString(16).slice(1);
-    }
-
-    return (
-        byteToHex[arr[0]] + byteToHex[arr[1]] + byteToHex[arr[2]] + byteToHex[arr[3]] + '-' +
-        byteToHex[arr[4]] + byteToHex[arr[5]] + '-' +
-        byteToHex[arr[6]] + byteToHex[arr[7]] + '-' +
-        byteToHex[arr[8]] + byteToHex[arr[9]] + '-' +
-        byteToHex[arr[10]] + byteToHex[arr[11]] + byteToHex[arr[12]] + byteToHex[arr[13]] + byteToHex[arr[14]] + byteToHex[arr[15]]
-    ).toLowerCase();
-}
-
-function socks5AddressParser(address) {
-    const authIndex = address.indexOf('@');
-    let username, password;
-    let hostPart = address;
-
-    if (authIndex !== -1) {
-        const [u, p] = address.substring(0, authIndex).split(':');
-        username = u;
-        password = p;
-        hostPart = address.substring(authIndex + 1);
-    }
-
-    const lastColon = hostPart.lastIndexOf(':');
-    const hostname = hostPart.substring(0, lastColon);
-    const port = parseInt(hostPart.substring(lastColon + 1), 10);
-
-    return { username, password, hostname, port };
-}
-
-// ============================================================================
-// MAIN WORKER EXPORT
-// ============================================================================
-
-export default {
-    async fetch(request, env, ctx) {
-        try {
-            await ensureTablesExist(env, ctx);
-
-            const url = new URL(request.url);
-            const upgradeHeader = request.headers.get('Upgrade');
-
-            if (upgradeHeader === 'websocket') {
-                const config = await Config.fromEnv(env);
-                return await ProtocolOverWSHandler(request, config, env, ctx);
-            }
-
-            const pathSegments = url.pathname.split('/').filter(Boolean);
-            if (pathSegments.length >= 2) {
-                const [coreType, uuid] = pathSegments;
-
-                if ((coreType === 'xray' || coreType === 'sb') && isValidUUID(uuid)) {
-                    const user = await getUserData(env, uuid, ctx);
-                    if (!user) {
-                        return new Response('User not found', { status: 404 });
-                    }
-                    return await handleIpSubscription(coreType, uuid, url.hostname, env);
-                }
-            }
-
-            const headers = new Headers({ 'Content-Type': 'text/html;charset=utf-8' });
-            const nonce = generateNonce();
-            addSecurityHeaders(headers, nonce, {});
-
-            return new Response(getHomepageHTML(nonce), { headers });
-
-        } catch (err) {
-            console.error('Main error:', err);
-            return new Response('Internal Server Error', { status: 500 });
-        }
-    },
-
-    async scheduled(event, env, ctx) {
-        console.log('Scheduled task running');
-        try {
-            await ensureTablesExist(env, ctx);
-            await performHealthCheck(env, ctx);
-            await cleanupOldData(env, ctx);
-        } catch (err) {
-            console.error('Scheduled error:', err);
-        }
-    },
-};
-
-// ============================================================================
-// HEALTH CHECK & CLEANUP
-// ============================================================================
-
-async function performHealthCheck(env, ctx) {
-    if (!env.DB) return;
-
-    const proxyIps = env.PROXYIPS ? env.PROXYIPS.split(',').map((ip) => ip.trim()) : Config.proxyIPs;
-
-    const results = await Promise.allSettled(proxyIps.map(async (ipPort) => {
-        const [host, port = '443'] = ipPort.split(':');
-        let latency = null;
-        let isHealthy = 0;
-        const start = Date.now();
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONST.HEALTH_CHECK_TIMEOUT);
-            
-            const response = await fetch(`https://${host}:${port}`, {
-                method: 'HEAD',
-                signal: controller.signal,
-            });
-            
-            clearTimeout(timeoutId);
-
-            if (response.ok || response.status >= 400) {
-                latency = Date.now() - start;
-                isHealthy = 1;
-            }
-        } catch (err) {
-            console.error(`Health check failed for ${ipPort}:`, err.message);
-        }
-
-        return { ipPort, isHealthy, latency };
-    }));
-
-    const statements = results
-        .filter((r) => r.status === 'fulfilled')
-        .map((r) => {
-            const { ipPort, isHealthy, latency } = r.value;
-            return env.DB.prepare(
-                "INSERT OR REPLACE INTO proxy_health (ip_port, is_healthy, latency_ms, last_check) VALUES (?, ?, ?, ?)"
-            ).bind(ipPort, isHealthy, latency, Math.floor(Date.now() / 1000));
-        });
-
-    try {
-        await env.DB.batch(statements);
-        console.log('Health check completed');
-    } catch (err) {
-        console.error('Health check DB error:', err);
-    }
-}
-
-async function cleanupOldData(env, ctx) {
-    if (!env.DB) return;
-
-    try {
-        const cleanupQueries = [
-            env.DB.prepare(`DELETE FROM user_ips WHERE last_seen < datetime('now', '-${CONST.IP_CLEANUP_AGE_DAYS} days')`).run(),
-            env.DB.prepare("DELETE FROM ip_blacklist WHERE expiration <= ?").bind(Math.floor(Date.now() / 1000)).run(),
-            env.DB.prepare("DELETE FROM key_value WHERE expiration <= ?").bind(Math.floor(Date.now() / 1000)).run(),
-        ];
-
-        await Promise.all(cleanupQueries);
-        console.log('Cleanup completed');
-    } catch (err) {
-        console.error('Cleanup error:', err);
-    }
-}
-
-// ============================================================================
-// HOMEPAGE HTML - QUANTUM EDITION
-// ============================================================================
-
+/**
+ * Generate beautiful homepage HTML
+ * @param {string} nonce - CSP nonce for inline scripts
+ * @returns {string} Complete HTML page
+ */
 function getHomepageHTML(nonce) {
     return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="پیشرفته‌ترین سرویس پروکسی VLESS با تکنولوژی کوانتومی">
     <title>⚡ VLESS Quantum Worker - سریع‌ترین پروکسی جهان</title>
     <style nonce="${nonce}">
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;900&display=swap');
+        
         * {
             margin: 0;
             padding: 0;
@@ -878,6 +1116,13 @@ function getHomepageHTML(nonce) {
             50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8), 0 0 80px rgba(118, 75, 162, 0.6); }
         }
 
+        @keyframes particleFloat {
+            0% { transform: translateY(100vh) translateX(0) scale(0); opacity: 0; }
+            10% { opacity: 1; transform: scale(1); }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(100px) scale(0); opacity: 0; }
+        }
+
         body {
             font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
             background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
@@ -899,14 +1144,9 @@ function getHomepageHTML(nonce) {
             height: 200%;
             background: radial-gradient(circle, rgba(255,255,255,0.1) 2px, transparent 2px);
             background-size: 60px 60px;
-            animation: moveGrid 30s linear infinite;
+            animation: rotate 60s linear infinite;
             opacity: 0.4;
             z-index: 0;
-        }
-
-        @keyframes moveGrid {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(60px, 60px) rotate(360deg); }
         }
 
         .particles {
@@ -915,20 +1155,14 @@ function getHomepageHTML(nonce) {
             height: 100%;
             overflow: hidden;
             z-index: 0;
+            pointer-events: none;
         }
 
         .particle {
             position: absolute;
             background: rgba(255, 255, 255, 0.6);
             border-radius: 50%;
-            animation: particleFloat 20s linear infinite;
-        }
-
-        @keyframes particleFloat {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100vh) translateX(100px); opacity: 0; }
+            pointer-events: none;
         }
 
         .container {
@@ -1251,35 +1485,12 @@ function getHomepageHTML(nonce) {
             width: 100%;
             opacity: 0.15;
             z-index: 0;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
-
-        .shimmer {
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(255,255,255,0.3) 50%, 
-                transparent 100%);
-            background-size: 1000px 100%;
-            animation: shimmer 3s infinite;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div class="particles">
-        <div class="particle" style="width: 10px; height: 10px; left: 10%; animation-delay: 0s;"></div>
-        <div class="particle" style="width: 8px; height: 8px; left: 20%; animation-delay: 2s;"></div>
-        <div class="particle" style="width: 12px; height: 12px; left: 30%; animation-delay: 4s;"></div>
-        <div class="particle" style="width: 6px; height: 6px; left: 40%; animation-delay: 1s;"></div>
-        <div class="particle" style="width: 10px; height: 10px; left: 50%; animation-delay: 3s;"></div>
-        <div class="particle" style="width: 8px; height: 8px; left: 60%; animation-delay: 5s;"></div>
-        <div class="particle" style="width: 12px; height: 12px; left: 70%; animation-delay: 2.5s;"></div>
-        <div class="particle" style="width: 10px; height: 10px; left: 80%; animation-delay: 4.5s;"></div>
-        <div class="particle" style="width: 8px; height: 8px; left: 90%; animation-delay: 1.5s;"></div>
-    </div>
+    <div class="particles" id="particles"></div>
 
     <div class="container">
         <div class="logo">
@@ -1399,6 +1610,31 @@ function getHomepageHTML(nonce) {
     <svg class="wave" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
         <path fill="#667eea" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
     </svg>
+
+    <script nonce="${nonce}">
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = 15;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            const size = Math.random() * 8 + 4;
+            const left = Math.random() * 100;
+            const delay = Math.random() * 20;
+            const duration = Math.random() * 10 + 15;
+            
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            particle.style.left = left + '%';
+            particle.style.animationDelay = delay + 's';
+            particle.style.animationDuration = duration + 's';
+            particle.style.animation = 'particleFloat ' + duration + 's linear infinite';
+            particle.style.animationDelay = delay + 's';
+            
+            particlesContainer.appendChild(particle);
+        }
+    </script>
 </body>
 </html>`;
 }
