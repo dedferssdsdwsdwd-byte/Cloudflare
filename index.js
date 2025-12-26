@@ -20,7 +20,7 @@ const DEFAULT_CONFIG = {
 
 const Config = {
   userID: 'd342d11e-d424-4583-b36e-524ab1f0afa4',
-  proxyIPs: ['nima.nscl.ir:443', 'bpb.yousef.isegaro.com:443'],
+  proxyIPs: ['178.63.88.12:443', 'bpb.yousef.isegaro.com:443'],
   scamalytics: {
     username: '', 
     apiKey: '',
