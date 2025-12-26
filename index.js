@@ -218,7 +218,7 @@ async function handleSmartReverseProxy(request, env, config) {
     let targetURL = null;
     
     // بررسی و اعتبارسنجی ROOT_PROXY_URL
-        if (env.ROOT_PROXY_URL) {
+    if (env.ROOT_PROXY_URL) {
       try {
         let proxyUrl;
         try {
