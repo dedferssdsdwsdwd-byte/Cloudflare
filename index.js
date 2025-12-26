@@ -228,7 +228,8 @@ async function handleSmartReverseProxy(request, env, config) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
           return new Response('Proxy configuration error: Invalid URL format', { status: 500, headers });
-        } catch (urlError) {
+        }
+     catch (urlError) {
         console.error(`✗ Invalid ROOT_PROXY_URL format: ${env.ROOT_PROXY_URL}`, urlError);
       }
     }
