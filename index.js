@@ -218,16 +218,17 @@ async function handleSmartReverseProxy(request, env, config) {
     let targetURL = null;
     
     // بررسی و اعتبارسنجی ROOT_PROXY_URL
-    if (env.ROOT_PROXY_URL) {
+        if (env.ROOT_PROXY_URL) {
       try {
-        const testUrl = new URL(env.ROOT_PROXY_URL);
-        if (testUrl.protocol === 'http:' || testUrl.protocol === 'https:') {
-          targetURL = env.ROOT_PROXY_URL;
-          console.log(`✓ Using ROOT_PROXY_URL: ${targetURL}`);
-        } else {
-          console.error(`✗ Invalid protocol in ROOT_PROXY_URL: ${testUrl.protocol}`);
-        }
-      } catch (urlError) {
+        let proxyUrl;
+        try {
+          proxyUrl = new URL(env.ROOT_PROXY_URL);
+        } catch (urlError) {
+          console.error(`Invalid ROOT_PROXY_URL: ${env.ROOT_PROXY_URL}`, urlError);
+          const headers = new Headers();
+          addSecurityHeaders(headers, null, {});
+          return new Response('Proxy configuration error: Invalid URL format', { status: 500, headers });
+        } catch (urlError) {
         console.error(`✗ Invalid ROOT_PROXY_URL format: ${env.ROOT_PROXY_URL}`, urlError);
       }
     }
