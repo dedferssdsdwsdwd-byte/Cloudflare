@@ -218,7 +218,7 @@ async function handleSmartReverseProxy(request, env, config) {
     let targetURL = null;
     
     // بررسی و اعتبارسنجی ROOT_PROXY_URL
-    if (env.ROOT_PROXY_URL) {
+    if (env.) {
       try {
         let proxyUrl;
         try {
@@ -233,14 +233,6 @@ async function handleSmartReverseProxy(request, env, config) {
         console.error(`✗ Invalid ROOT_PROXY_URL format: ${env.ROOT_PROXY_URL}`, urlError);
       }
     }
-    
-    // اگر URL نامعتبر بود، از لیست Fallback استفاده می‌کنیم
-    const fallbackTargets = [
-      'https://www.cloudflare.com',
-      'https://www.mozilla.org',
-      'https://www.wikipedia.org',
-      'https://www.ietf.org'
-    ];
     
     if (!targetURL) {
       targetURL = fallbackTargets[Math.floor(Math.random() * fallbackTargets.length)];
