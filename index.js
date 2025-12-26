@@ -231,8 +231,6 @@ async function handleSmartReverseProxy(request, env, config) {
         console.error(`✗ Invalid ROOT_PROXY_URL format: ${env.ROOT_PROXY_URL}`, urlError);
       }
     }
-        return new Response('Proxy configuration error: Invalid URL format', { status: 500, headers });
-        }
     
     // اگر URL نامعتبر بود، از لیست Fallback استفاده می‌کنیم
     const fallbackTargets = [
