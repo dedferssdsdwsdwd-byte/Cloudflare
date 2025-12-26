@@ -228,7 +228,6 @@ async function handleSmartReverseProxy(request, env, config) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
           return new Response('Proxy configuration error: Invalid URL format', { status: 500, headers });
-        }
 
     if (!targetURL) {
       targetURL = fallbackTargets[Math.floor(Math.random() * fallbackTargets.length)];
