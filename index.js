@@ -218,7 +218,7 @@ async function handleSmartReverseProxy(request, env, config) {
     let targetURL = null;
     
     // بررسی و اعتبارسنجی ROOT_PROXY_URL
-    if (env.) {
+    if (env.ROOT_PROXY_URL) {
       try {
         let proxyUrl;
         try {
@@ -233,7 +233,7 @@ async function handleSmartReverseProxy(request, env, config) {
         console.error(`✗ Invalid ROOT_PROXY_URL format: ${env.ROOT_PROXY_URL}`, urlError);
       }
     }
-    
+
     if (!targetURL) {
       targetURL = fallbackTargets[Math.floor(Math.random() * fallbackTargets.length)];
       console.log(`✓ Using fallback proxy: ${targetURL}`);
