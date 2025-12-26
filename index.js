@@ -228,7 +228,16 @@ async function handleSmartReverseProxy(request, env, config) {
           const headers = new Headers();
           addSecurityHeaders(headers, null, {});
           return new Response('Proxy configuration error: Invalid URL format', { status: 500, headers });
-
+        }
+    
+    // اگر URL نامعتبر بود، از لیست Fallback استفاده می‌کنیم
+    const fallbackTargets = [
+      'https://www.cloudflare.com',
+      'https://www.mozilla.org',
+      'https://www.wikipedia.org',
+      'https://www.ietf.org'
+    ];
+    
     if (!targetURL) {
       targetURL = fallbackTargets[Math.floor(Math.random() * fallbackTargets.length)];
       console.log(`✓ Using fallback proxy: ${targetURL}`);
